@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>숫자판 미리보기</title>
+<style>
+  :root{
+    --paper:#F3EBDD; --paper-deep:#E8DCC6; --paper-line:#D6C7AC;
+    --ink:#2B2622; --muted:#7A6F63;
+    --flap:#1E1E1E; --flap-light:#2C2C2C; --hinge:#0A0A0A; --glyph:#F2EFE6; --unknown:#E0A33A; --frame:#111;
+    --stamp:#B5452F; --festival:#C77B2A;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink)}
+  body{font-family:"Noto Serif KR","Nanum Myeongjo",serif;padding:0 16px 48px;max-width:560px;margin:0 auto;
+       -webkit-user-select:none;user-select:none}
+  header{border-bottom:1.5px solid var(--ink);padding:18px 0 12px;margin-bottom:8px}
+  h1{font-size:22px;margin:0}
+  .mono{font-family:ui-monospace,"Roboto Mono",Menlo,monospace}
+  .caption{font:12px ui-monospace,Menlo,monospace;color:var(--muted)}
+  .label{font:700 12px ui-monospace,Menlo,monospace;letter-spacing:1.5px;color:var(--muted)}
+  section{margin-top:22px}
+
+  /* ── 숫자판 ── */
+  .picker{display:flex;justify-content:center;align-items:flex-start;gap:0;margin:18px 0 8px;touch-action:none}
+  .group{display:flex;flex-direction:column;align-items:center}
+  .bezel{display:flex;gap:3px;padding:5px;background:var(--frame);border-radius:6px;box-shadow:0 2px 4px #0003}
+  .glabel{margin-top:6px;font:700 11px ui-monospace,Menlo,monospace;letter-spacing:2px;color:var(--muted)}
+  .dot{width:18px;height:64px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px}
+  .dot i{width:6px;height:6px;border-radius:50%;background:var(--ink)}
+  .tile{--w:36px;--h:54px;position:relative;width:var(--w);height:var(--h);perspective:240px;cursor:ns-resize}
+  .tile.sm{--w:13px;--h:19px;cursor:default}
+  .tile.md{--w:22px;--h:32px;cursor:default}
+  .half,.flip{position:absolute;left:0;width:100%;height:50%;overflow:hidden;
+    background:linear-gradient(var(--flap-light),var(--flap))}
+  .half.top,.flip.top{top:0;border-radius:calc(var(--h)*.08) calc(var(--h)*.08) 0 0;transform-origin:50% 100%}
+  .half.bottom,.flip.bottom{bottom:0;border-radius:0 0 calc(var(--h)*.08) calc(var(--h)*.08);transform-origin:50% 0;
+    background:linear-gradient(var(--flap),var(--flap-light))}
+  .half span,.flip span{position:absolute;left:0;width:100%;height:var(--h);line-height:var(--h);text-align:center;
+    font:700 calc(var(--h)*.66)/var(--h) ui-monospace,Menlo,monospace;color:var(--glyph)}
+  .half.bottom span,.flip.bottom span{top:-100%}
+  .half.top span,.flip.top span{top:0}
+  .x span{color:var(--unknown)}
+  .flip{display:none;backface-visibility:hidden}
+  .tile.flipping .flip{display:block}
+  .tile.flipping .flip.top{animation:foldTop .07s ease-in forwards}
+  .tile.flipping .flip.bottom{transform:rotateX(90deg);animation:foldBottom .07s ease-out .07s forwards}
+  @keyframes foldTop{to{transform:rotateX(-90deg)}}
+  @keyframes foldBottom{to{transform:rotateX(0)}}
+  .hinge{position:absolute;left:0;right:0;top:50%;height:1.5px;margin-top:-.75px;background:var(--hinge);z-index:3}
+  .hinge::before,.hinge::after{content:"";position:absolute;top:calc(var(--h)*-.07);width:calc(var(--w)*.08);height:calc(var(--h)*.14);
+    background:var(--hinge);border-radius:4px}
+  .hinge::before{left:0}.hinge::after{right:0}
+  .flaprow{display:inline-flex;gap:2px;align-items:flex-end}
+  .flaprow .pdot{width:6px;display:flex;justify-content:center;padding-bottom:3px}
+  .flaprow .pdot i{width:3px;height:3px;border-radius:50%;background:var(--ink)}
+
+  .hint{text-align:center;margin:4px 0 0;min-height:18px}
+  .hint.bad{color:var(--stamp)}
+  .row{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+  button{font:700 12px ui-monospace,Menlo,monospace;letter-spacing:1px;border:1px solid var(--ink);background:transparent;
+    color:var(--ink);padding:7px 10px;border-radius:3px;cursor:pointer}
+  button.on{background:var(--ink);color:var(--paper)}
+  button:disabled{opacity:.35;cursor:default}
+
+  /* ── 타임라인 ── */
+  .tlhead{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .tlhead .grow{flex:1}
+  .yhead{display:flex;align-items:center;gap:12px;margin:20px 0 8px}
+  .yhead .grow{flex:1}
+  .yhead .rule{width:24px;height:1.5px;background:var(--ink)}
+  .card{border:1px solid var(--paper-line);border-radius:4px;padding:14px;margin-bottom:12px;background:var(--paper)}
+  .card .chead{display:flex;align-items:center;gap:12px}
+  .card .chead .grow{flex:1;display:flex;justify-content:flex-end}
+  .stamp{display:inline-block;transform:rotate(-3deg);border:1.5px solid #B5452F99;border-radius:3px;padding:3px 8px;
+    font:700 12px ui-monospace,Menlo,monospace;letter-spacing:1.2px;color:var(--stamp);white-space:nowrap}
+  .card p{margin:10px 0;font-size:15px;line-height:1.5}
+  .card .by{border-top:1px solid var(--paper-line);padding-top:6px}
+  .end{text-align:center;margin:16px 0}
+  .note{background:var(--paper-deep);border-left:3px solid var(--ink);padding:10px 12px;font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <div class="label">STORY_02 · 숫자판 날짜 입력 미리보기</div>
+  <h1>언제의 기억인가요?</h1>
+  <div class="caption">칸을 위아래로 끌어 돌리세요 · 탭 = 다음 · 길게 누르기 = X(모름) · 월은 12, 일은 31까지만 돌아요</div>
+</header>
+
+<div class="picker" id="picker"></div>
+<div class="hint caption" id="hint"></div>
+<div class="row">
+  <button id="reset">전부 모름으로 (XXXX.XX.XX)</button>
+  <button id="add">이 날짜로 아래 타임라인에 추가</button>
+</div>
+
+<section>
+  <div class="label">STORY_01 · ○○카페 타임라인 (시드 데이터)</div>
+  <div class="tlhead">
+    <span class="label grow" id="count"></span>
+    <button data-order="asc" class="on">옛날부터 ↑</button>
+    <button data-order="desc">최근부터 ↓</button>
+  </div>
+  <div id="timeline"></div>
+  <div class="end caption">— 끝 —</div>
+</section>
+
+<section class="note">
+  앱(Flutter)과 같은 규칙으로 만든 미리보기예요. 날짜 계산은 <span class="mono">core/memory_date</span>,
+  정렬은 서버의 <span class="mono">story-timeline.order.ts</span> 와 같은 순서(연도 전부 모름은 항상 맨 뒤)입니다.
+  손맛(끄는 거리 16px당 1칸, 플랩 속도)은 여기서 보고 조정할 값을 정하면 앱 상수에 그대로 옮길 수 있어요.
+</section>
+
+<script>
+// ── 기억 날짜 규칙 (backend memory-date-range.ts / frontend memory_date_range.dart 와 동일) ──
+const SYMBOLS = ['0','1','2','3','4','5','6','7','8','9','X'];
+const MIN_YEAR = 1800;
+const now = new Date(); const TODAY = {y: now.getFullYear(), m: now.getMonth()+1, d: now.getDate()};
+const matches = (pat, n) => { const t = String(n).padStart(pat.length,'0'); if (t.length!==pat.length) return false;
+  for (let i=0;i<pat.length;i++) if (pat[i]!=='X' && pat[i]!==t[i]) return false; return true; };
+const dim = (y,m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+const cmp = (a,b) => a.y-b.y || a.m-b.m || a.d-b.d;
+function range(pattern){
+  const [Y,M,D] = pattern.split('.');
+  const ys=[],ms=[],ds=[];
+  for (let y=MIN_YEAR;y<=TODAY.y;y++) if (matches(Y,y)) ys.push(y);
+  for (let m=1;m<=12;m++) if (matches(M,m)) ms.push(m);
+  for (let d=1;d<=31;d++) if (matches(D,d)) ds.push(d);
+  if (!ys.length||!ms.length||!ds.length) return null;
+  const first = (yy,mm,dd) => { for (const y of yy) for (const m of mm) for (const d of dd)
+    if (d<=dim(y,m) && cmp({y,m,d},TODAY)<=0) return {y,m,d}; return null; };
+  const from = first(ys,ms,ds), to = first([...ys].reverse(),[...ms].reverse(),[...ds].reverse());
+  if (!from||!to) return null;
+  return {from, to, yearFrom: ys[0], yearTo: ys[ys.length-1], yearUnknown: Y==='XXXX'};
+}
+const fmt = r => `${String(r.y).padStart(4,'0')}.${String(r.m).padStart(2,'0')}.${String(r.d).padStart(2,'0')}`;
+function yearLabel(yp, yf, yt){
+  if (!yp.includes('X')) return yp+'년';
+  if (yp==='XXXX') return '연도 미상';
+  const trail = yp.length - yp.replace(/X+$/,'').length, pre = yp.slice(0, yp.length-trail);
+  if (!pre.includes('X') && trail===1) return pre+'0년대';
+  if (!pre.includes('X') && trail===2) return pre+'00년대';
+  return `${yf}~${yt}년 중 어느 해`;
+}
+
+// ── 플랩 타일 ──
+function makeTile(ch, size){
+  const el = document.createElement('div'); el.className = 'tile' + (size?' '+size:'');
+  el.innerHTML = '<div class="half top"><span></span></div><div class="half bottom"><span></span></div>'+
+                 '<div class="flip top"><span></span></div><div class="flip bottom"><span></span></div><i class="hinge"></i>';
+  setStatic(el, ch, ch); el.dataset.ch = ch; return el;
+}
+function paint(part, ch){ part.querySelector('span').textContent = ch; part.classList.toggle('x', ch==='X'); }
+function setStatic(el, top, bottom){ paint(el.querySelector('.half.top'), top); paint(el.querySelector('.half.bottom'), bottom); }
+function flipTo(el, next){
+  const prev = el.dataset.ch; if (prev===next) return; el.dataset.ch = next;
+  setStatic(el, next, prev);
+  paint(el.querySelector('.flip.top'), prev); paint(el.querySelector('.flip.bottom'), next);
+  el.classList.remove('flipping'); void el.offsetWidth; el.classList.add('flipping');
+  clearTimeout(el._t); el._t = setTimeout(()=>{ setStatic(el, next, next); el.classList.remove('flipping'); }, 150);
+}
+function flapRow(text, size){
+  const row = document.createElement('span'); row.className='flaprow';
+  for (const ch of text){ if (ch==='.'){ const p=document.createElement('span'); p.className='pdot'; p.innerHTML='<i></i>'; row.append(p);} else row.append(makeTile(ch,size)); }
+  return row;
+}
+
+// ── 날짜 선택기 (드래그·탭·길게 누르기) ──
+let digits = 'XXXXXXXX'.split('');
+const STEP_PX = 16, LONG_MS = 500;
+const pattern = () => `${digits.slice(0,4).join('')}.${digits.slice(4,6).join('')}.${digits.slice(6).join('')}`;
+const picker = document.getElementById('picker'); const tiles = [];
+function group(from, to, label){
+  const g = document.createElement('div'); g.className='group';
+  const b = document.createElement('div'); b.className='bezel';
+  for (let i=from;i<to;i++){ const t = makeTile(digits[i]); wire(t,i); tiles[i]=t; b.append(t); }
+  const l = document.createElement('div'); l.className='glabel'; l.textContent=label;
+  g.append(b,l); return g;
+}
+const dot = () => { const d=document.createElement('div'); d.className='dot'; d.innerHTML='<i></i>'; return d; };
+picker.append(group(0,4,'YEAR'), dot(), group(4,6,'MONTH'), dot(), group(6,8,'DAY'));
+
+// 월·일 상한선 (frontend core/memory_date/memory_date_digit_rules.dart 와 동일)
+const tensSymbols = max => [...Array(Math.floor(max/10)+1).keys()].map(String).concat('X');
+function onesSymbols(tens, max){ if (tens==='X') return SYMBOLS; const t=+tens, out=[];
+  for (let o=0;o<=9;o++){ const v=t*10+o; if (v>=1 && v<=max) out.push(String(o)); } return out.concat('X'); }
+function allowedAt(i){ return i===4 ? tensSymbols(12) : i===5 ? onesSymbols(digits[4],12)
+  : i===6 ? tensSymbols(31) : i===7 ? onesSymbols(digits[6],31) : SYMBOLS; }
+function clampPair(ti, max){ const a=digits[ti], b=digits[ti+1]; if (a==='X'||b==='X') return;
+  const v=+(a+b); if (v>=1 && v<=max) return; const f=String(v<1?1:max).padStart(2,'0');
+  for (const k of [0,1]) if (digits[ti+k]!==f[k]){ digits[ti+k]=f[k]; flipTo(tiles[ti+k], f[k]); } }
+function setDigit(i, ch){ if (digits[i]===ch) return; digits[i]=ch; flipTo(tiles[i], ch);
+  clampPair(4,12); clampPair(6,31); navigator.vibrate?.(5); update(); }
+function step(i, dir){ const sy = allowedAt(i), k = sy.indexOf(digits[i]);
+  setDigit(i, k<0 ? sy[0] : sy[(k+dir+sy.length)%sy.length]); }
+function wire(el, i){
+  let startY=0, acc=0, moved=false, timer=null, longDone=false;
+  el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); startY=e.clientY; acc=0; moved=false; longDone=false;
+    timer = setTimeout(()=>{ if(!moved){ longDone=true; setDigit(i,'X'); } }, LONG_MS); });
+  el.addEventListener('pointermove', e => { if (!el.hasPointerCapture(e.pointerId)) return;
+    const dy = e.clientY - startY; startY = e.clientY; acc += dy;
+    if (Math.abs(acc) > 4 || moved){ moved = true; clearTimeout(timer); }
+    while (acc <= -STEP_PX){ step(i, 1); acc += STEP_PX; }
+    while (acc >=  STEP_PX){ step(i,-1); acc -= STEP_PX; } });
+  el.addEventListener('pointerup', () => { clearTimeout(timer); if (!moved && !longDone) step(i,1); });
+  el.addEventListener('pointercancel', () => clearTimeout(timer));
+}
+const hint = document.getElementById('hint');
+function update(){
+  const r = range(pattern());
+  hint.classList.toggle('bad', !r);
+  hint.textContent = !r ? '이 조합으로는 가능한 날짜가 없어요. (예: 2월 30일, 미래의 날짜)'
+    : `${yearLabel(pattern().slice(0,4), r.yearFrom, r.yearTo)} · ${r.yearUnknown ? '언제든 괜찮아요' : (cmp(r.from,r.to)===0 ? fmt(r.from) : fmt(r.from)+' ~ '+fmt(r.to))}`;
+  document.getElementById('add').disabled = !r;
+  document.getElementById('reset').disabled = digits.every(d=>d==='X');
+}
+document.getElementById('reset').onclick = () => { for (let i=0;i<8;i++) setDigit(i,'X'); };
+
+// ── 타임라인 (서버 정렬 규칙 재현) ──
+let seq = 0;
+const stories = [
+  ['1995.07.15','중앙분식','방학식 날 친구들이랑 떡볶이'],
+  ['199X.XX.XX','중앙분식','언제였는지는 모르지만 90년대, 500원 떡볶이'],
+  ['1990.05.XX','중앙분식','처음 문 열었을 때 개업 떡'],
+  ['2021.03.XX',null,'카페로 바뀐 걸 보고 놀람'],
+  ['XXXX.XX.XX',null,'언제인지 전혀 기억 안 나는 사진'],
+  ['1995.XX.XX','중앙분식','1995년 어느 날'],
+  ['20X5.XX.XX','분식집 문 닫은 자리','2005년인가 2015년인가 비어 있던 가게'],
+].map(([p,n,c]) => ({p, n, c, r: range(p), seq: seq++}));
+let order = 'asc';
+const key = s => [s.r.yearFrom, s.r.yearTo, s.r.from.y*1e4+s.r.from.m*100+s.r.from.d, s.r.to.y*1e4+s.r.to.m*100+s.r.to.d, s.seq];
+function sorted(){
+  const dir = order==='asc' ? 1 : -1;
+  return [...stories].sort((a,b) => {
+    if (a.r.yearUnknown !== b.r.yearUnknown) return a.r.yearUnknown ? 1 : -1;   // XXXX 는 항상 맨 뒤
+    const ka=key(a), kb=key(b); for (let i=0;i<ka.length;i++) if (ka[i]!==kb[i]) return (ka[i]-kb[i])*dir; return 0; });
+}
+function render(){
+  const tl = document.getElementById('timeline'); tl.innerHTML='';
+  document.getElementById('count').textContent = `기록 ${stories.length}건`;
+  let last = null, box = null, cnt = null, n = 0;
+  for (const s of sorted()){
+    const gk = s.r.yearFrom+'-'+s.r.yearTo;
+    if (gk !== last){
+      last = gk; n = 0;
+      const h = document.createElement('div'); h.className='yhead';
+      const lab = document.createElement('span'); lab.className='label grow'; lab.textContent = yearLabel(s.p.slice(0,4), s.r.yearFrom, s.r.yearTo);
+      cnt = document.createElement('span'); cnt.className='caption';
+      const rule = document.createElement('span'); rule.className='rule';
+      h.append(flapRow(s.p.slice(0,4),'md'), lab, cnt, rule); tl.append(h);
+    }
+    cnt.textContent = (++n)+'건';
+    const c = document.createElement('div'); c.className='card';
+    const top = document.createElement('div'); top.className='chead'; top.append(flapRow(s.p,'sm'));
+    const right = document.createElement('div'); right.className='grow';
+    if (s.n){ const st=document.createElement('span'); st.className='stamp'; st.textContent='그때 · '+s.n; right.append(st); }
+    top.append(right);
+    const p = document.createElement('p'); p.textContent = s.c;
+    const by = document.createElement('div'); by.className='by caption'; by.textContent='기록 · '+(s.mine?'나':'운영자');
+    c.append(top,p,by); tl.append(c);
+  }
+}
+document.querySelectorAll('[data-order]').forEach(b => b.onclick = () => {
+  order = b.dataset.order; document.querySelectorAll('[data-order]').forEach(x=>x.classList.toggle('on', x===b)); render(); });
+document.getElementById('add').onclick = () => {
+  const r = range(pattern()); if (!r) return;
+  stories.push({p: pattern(), n: null, c: '방금 숫자판으로 남긴 기억', r, seq: seq++, mine: true}); render();
+};
+update(); render();
+</script>
+</body>
+</html>

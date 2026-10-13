@@ -1,0 +1,39 @@
+﻿00:00 +0: loading C:/yeongcheonmap/frontend/test/core/error/failure_mapper_test.dart
+00:00 +0: C:/yeongcheonmap/frontend/test/core/error/failure_mapper_test.dart: ApiException → ServerFailure(code 유지)
+00:00 +1: C:/yeongcheonmap/frontend/test/core/error/failure_mapper_test.dart: NetworkException → NetworkFailure
+00:00 +2: C:/yeongcheonmap/frontend/test/core/error/failure_mapper_test.dart: 정상 → Ok
+00:00 +3: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_digit_rules_test.dart: allowedSymbolsAt — 월·일 상한선 연도 칸은 제한 없음
+00:00 +4: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_digit_rules_test.dart: allowedSymbolsAt — 월·일 상한선 월 첫째: 0, 1, X
+00:00 +5: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_digit_rules_test.dart: allowedSymbolsAt — 월·일 상한선 월 둘째: 첫째에 따라 01~09 / 10~12 / 모름이면 전부
+00:00 +6: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_digit_rules_test.dart: allowedSymbolsAt — 월·일 상한선 일 첫째: 0~3, X
+00:00 +7: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_digit_rules_test.dart: allowedSymbolsAt — 월·일 상한선 일 둘째: 첫째 0 → 1~9, 3 → 0~1, 2 → 0~9
+00:00 +8: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_digit_rules_test.dart: clampMonthAndDay — 첫째 자리 변경으로 범위를 벗어나면 둘째 자리를 맞춤 19월 → 12월, 00월 → 01월
+00:00 +9: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_digit_rules_test.dart: clampMonthAndDay — 첫째 자리 변경으로 범위를 벗어나면 둘째 자리를 맞춤 39일 → 31일, 00일 → 01일
+00:00 +10: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_digit_rules_test.dart: clampMonthAndDay — 첫째 자리 변경으로 범위를 벗어나면 둘째 자리를 맞춤 한쪽이 X 이거나 범위 안이면 그대로
+00:00 +11: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_pattern_test.dart: MemoryDatePattern 기본값은 XXXX.XX.XX
+00:00 +12: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_pattern_test.dart: MemoryDatePattern 소문자 x 허용, 형식이 틀리면 null
+00:00 +13: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_pattern_test.dart: MemoryDatePattern withDigit 은 한 자리만 바꾼 새 값
+00:00 +14: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_pattern_test.dart: yearGroupLabel 사례
+00:00 +15: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 완전한 날짜는 그 하루
+00:00 +16: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 월·일 모름 → 그 해 전체
+00:00 +17: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 연도 끝자리 모름 → 1990년대
+00:00 +18: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 중간 자리 모름 → 1905 … 1995
+00:00 +19: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 월 0X, 일 1X → 1~9월, 10~19일
+00:00 +20: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 월 1X → 10~12월만
+00:00 +21: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 일 3X: 2월엔 불가, 4월은 30일까지
+00:00 +22: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 윤년 2월 29일
+00:00 +23: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 존재하지 않는 월/일
+00:00 +24: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 미래 불가, 올해는 오늘까지
+00:00 +25: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 1800년 이전은 후보에서 제외
+00:00 +26: C:/yeongcheonmap/frontend/test/core/memory_date/memory_date_range_test.dart: 전부 모름 → 1800-01-01 ~ 오늘
+00:00 +27: C:/yeongcheonmap/frontend/test/data/models/place_pin_model_test.dart: PlacePinModel.fromJson 은 명세 예시를 파싱한다
+00:00 +28: C:/yeongcheonmap/frontend/test/data/models/place_pin_model_test.dart: PagedResultModel 은 items/page/size/totalCount 를 읽고 hasMore 를 계산한다
+00:00 +29: C:/yeongcheonmap/frontend/test/data/models/place_pin_model_test.dart: StoryModel.fromJson 은 memoryDate 객체와 placeNameThen 을 읽는다
+00:00 +30: C:/yeongcheonmap/frontend/test/ui/flap_digit_wheel_test.dart: 탭하면 다음 글자 (9 다음은 X, X 다음은 0)
+00:01 +31: C:/yeongcheonmap/frontend/test/ui/flap_digit_wheel_test.dart: 탭하면 다음 글자 (9 다음은 X, X 다음은 0)
+00:01 +32: C:/yeongcheonmap/frontend/test/ui/flap_digit_wheel_test.dart: 탭하면 다음 글자 (9 다음은 X, X 다음은 0)
+00:01 +33: C:/yeongcheonmap/frontend/test/ui/flap_digit_wheel_test.dart: 위로 끌면 끈 거리만큼 앞으로
+00:01 +34: C:/yeongcheonmap/frontend/test/ui/flap_digit_wheel_test.dart: 아래로 끌면 뒤로 (0 이전은 X)
+00:01 +35: C:/yeongcheonmap/frontend/test/ui/flap_digit_wheel_test.dart: 길게 누르면 바로 X
+00:01 +36: C:/yeongcheonmap/frontend/test/ui/flap_digit_wheel_test.dart: symbols 로 좁히면 그 안에서만 돈다 (월 첫째: 0, 1, X)
+00:01 +37: All tests passed!

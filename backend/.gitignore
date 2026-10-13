@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+coverage/
+# prisma generate 산출물 (npm run prisma:generate 로 재생성)
+src/generated/
+CLAUDE.md
