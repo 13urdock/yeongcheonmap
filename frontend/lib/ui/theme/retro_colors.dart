@@ -1,7 +1,8 @@
 import 'package:flutter/painting.dart';
 
 // 레트로 아카이브 팔레트 (Sys_06). 화면에서는 이 토큰만 쓴다.
-// 바탕은 바랜 종이, 글씨는 먹색, 숫자판은 공항 출발 안내판의 검은 판 + 흰 글자.
+// 바탕은 바랜 종이, 글씨는 먹색, 숫자판은 공항 출발 안내판 모양을 웜톤(어두운 갈색 판 + 종이색 글자)으로.
+// 지도 위 장소 표시는 울트라바이올렛 정사각형 (웜톤 지도 위에서 눈에 띄게).
 class RetroColors {
   RetroColors._();
 
@@ -14,16 +15,22 @@ class RetroColors {
   static const Color ink = Color(0xFF2B2622);
   static const Color inkMuted = Color(0xFF7A6F63);
 
-  // 숫자판
-  static const Color flapBody = Color(0xFF1E1E1E);
-  static const Color flapBodyLight = Color(0xFF2C2C2C);
-  static const Color flapHinge = Color(0xFF0A0A0A);
-  static const Color flapGlyph = Color(0xFFF2EFE6);
-  static const Color flapUnknown = Color(0xFFE0A33A); // X(모름) 글자는 호박색
-  static const Color flapFrame = Color(0xFF111111);
+  // 숫자판 (어두운 갈색 — 검정은 종이 바탕에서 붕 떠 보여서 2026-11-08 교체)
+  static const Color flapBody = Color(0xFF4A3527);
+  static const Color flapBodyLight = Color(0xFF5B4334);
+  static const Color flapHinge = Color(0xFF2E2017);
+  static const Color flapGlyph = Color(0xFFF3EBDD);
+  static const Color flapUnknown = Color(0xFFE8AE4A); // X(모름) 글자는 호박색
+  static const Color flapFrame = Color(0xFF3A2A1F);
 
   // 도장·강조
   static const Color stamp = Color(0xFFB5452F);
   static const Color stampFaded = Color(0x99B5452F);
-  static const Color festival = Color(0xFFC77B2A); // 축제 핀
+  static const Color festival = Color(0xFFC77B2A); // 축제 표시
+
+  // 지도 위 장소 표시 (울트라바이올렛)
+  static const Color place = Color(0xFF5F4B8B);
+
+  // 사진 위에 얹는 반투명 잉크 (쪽수 배지·빼기 버튼)
+  static const Color photoScrim = Color(0xBF2B2622);
 }

@@ -12,4 +12,10 @@ export class QueryPlacesDto extends PaginationDto {
   @IsString()
   @MaxLength(100)
   usageType?: string;
+
+  // 검색어: 지금 이름 또는 주소에 포함 (기록 작성 시 장소 고르기)
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  q?: string;
 }

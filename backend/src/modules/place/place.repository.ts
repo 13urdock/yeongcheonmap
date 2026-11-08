@@ -10,6 +10,7 @@ export type PlaceWithCountRow = Prisma.PlaceGetPayload<{ include: typeof withSto
 export interface PinFilter {
   bbox?: BoundingBox;
   usageType?: string;
+  keyword?: string; // 이름·주소 부분 일치
 }
 
 export interface CreatePlaceData {
@@ -45,13 +46,34 @@ export class PlaceRepository {
     return this.prisma.place.findUnique({ where: { placeId } });
   }
 
+  // 여러 사각형 중 하나라도 안에 드는 장소 (같은 장소 판정의 1차 거르기, 한 번의 쿼리)
+  findInBoxes(boxes: BoundingBox[]): Promise<Place[]> {
+    if (boxes.length === 0) return Promise.resolve([]);
+    return this.prisma.place.findMany({
+      where: {
+        OR: boxes.map((b) => ({
+          latitude: { gte: b.minLat, lte: b.maxLat },
+          longitude: { gte: b.minLng, lte: b.maxLng },
+        })),
+      },
+    });
+  }
+
   create(data: CreatePlaceData): Promise<Place> {
     return this.prisma.place.create({ data });
   }
 
-  private toPinWhere({ bbox, usageType }: PinFilter): Prisma.PlaceWhereInput {
+  private toPinWhere({ bbox, usageType, keyword }: PinFilter): Prisma.PlaceWhereInput {
     return {
       ...(usageType ? { usageType } : {}),
+      ...(keyword
+        ? {
+            OR: [
+              { name: { contains: keyword, mode: 'insensitive' } },
+              { address: { contains: keyword, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
       ...(bbox
         ? {
             latitude: { gte: bbox.minLat, lte: bbox.maxLat },

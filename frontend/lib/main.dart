@@ -8,6 +8,11 @@ import 'core/config/env.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  debugPrint('[Env] API_BASE_URL=${Env.apiBaseUrl}');
+  for (final key in Env.missingKeys) {
+    debugPrint('[Env] $key 가 비어 있어요 — .env 키 이름과 --dart-define-from-file=.env 를 확인해 주세요.');
+  }
+
   await FlutterNaverMap().init(
     clientId: Env.naverMapClientId,
     onAuthFailed: (ex) => debugPrint('네이버 지도 인증 실패: $ex'),

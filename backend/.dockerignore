@@ -1,0 +1,9 @@
+# 이미지에 넣지 않을 것 (용량·비밀값)
+node_modules
+dist
+src/generated
+coverage
+*.log
+.env
+.env.*
+!.env.example

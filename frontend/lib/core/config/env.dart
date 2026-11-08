@@ -1,5 +1,5 @@
-// 빌드 시 --dart-define 으로 주입되는 환경값. (.env 파일 대신 dart-define 사용 → 별도 패키지 불필요)
-// 예) flutter run --dart-define=NAVER_MAP_CLIENT_ID=xxx --dart-define=API_BASE_URL=http://10.0.2.2:8080/api/v1
+// 빌드 시 주입되는 환경값. 값은 frontend/.env 에 적고 `flutter run --dart-define-from-file=.env` 로 넣는다
+// (run_dev.ps1 이 대신 해 줌). 키 이름은 아래 String.fromEnvironment 의 이름과 정확히 같아야 한다.
 class Env {
   Env._();
 
@@ -12,7 +12,13 @@ class Env {
   /// 네이버 클라우드 플랫폼(NCP) Maps 클라이언트 ID. 비어 있으면 지도 인증 실패.
   static const String naverMapClientId = String.fromEnvironment('NAVER_MAP_CLIENT_ID');
 
-  /// 로그인(Auth_01) 구현 전 개발용 access 토큰. 비어 있으면 비로그인 호출.
-  /// 백엔드 README "개발용 토큰" 방법으로 만들어 --dart-define=DEV_ACCESS_TOKEN=... 로 넘긴다. 릴리즈 빌드에 넣지 말 것.
-  static const String devAccessToken = String.fromEnvironment('DEV_ACCESS_TOKEN');
+  /// 전시 모드(기본 켜짐): 전시 기기 전용. 관람객 화면에 로그인·가입·로그아웃을 보이지 않고,
+  /// 운영진이 기기마다 한 번 수집가 계정으로 로그인해 두면 그 기기에서 남긴 기록은 모두 수집가 이름으로 올라간다.
+  /// 일반 배포(플레이스토어) 빌드에서만 EXHIBITION_MODE=false 로 끈다.
+  static const bool exhibitionMode = bool.fromEnvironment('EXHIBITION_MODE', defaultValue: true);
+
+  /// 비어 있으면 안 되는 값 중 비어 있는 키 이름들 (.env 키 오타·from-file 누락을 시작 시 알리기 위함)
+  static List<String> get missingKeys => [
+        if (naverMapClientId.isEmpty) 'NAVER_MAP_CLIENT_ID',
+      ];
 }

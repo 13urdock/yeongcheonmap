@@ -12,6 +12,11 @@ class EventRepository {
 
   Future<Result<List<EventPinModel>>> getPins() => runGuarded(_remote.fetchPins);
 
+  /// 기록할 축제 고르기: 이름·주소에 [keyword] 가 든 축제 (빈 문자열이면 전체)
+  Future<Result<List<EventPinModel>>> search(String keyword) {
+    return runGuarded(() => _remote.fetchPins(keyword: keyword));
+  }
+
   Future<Result<EventDetailModel>> getDetail(String eventId) {
     return runGuarded(() => _remote.fetchDetail(eventId));
   }

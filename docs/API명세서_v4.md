@@ -9,7 +9,7 @@
 | 버전 | v4 |
 | Base URL | 개발: `http://localhost:8080/api/v1` (에뮬레이터에서는 `http://10.0.2.2:8080/api/v1`) |
 | DB | PostgreSQL / 이미지: 외부 스토리지 |
-| 최종 수정일 | 2026-10-10 |
+| 최종 수정일 | 2026-11-07 |
 
 ## 1. 공통 규약
 - 인증: JWT Bearer, `Authorization: Bearer {accessToken}`, `POST /auth/refresh`로 갱신.
@@ -29,6 +29,7 @@
 | `EVENT_NOT_FOUND` | 404 | |
 | `STORY_NOT_FOUND` | 404 | |
 | `DUPLICATE_EMAIL` | 409 | |
+| `PLACE_SEARCH_UNAVAILABLE` | 503 | 영천 장소 검색(외부 지도 검색)을 지금 쓸 수 없음 — 키 미설정·외부 오류 |
 | `INTERNAL_ERROR` | 500 | |
 
 ## 2. 기억 날짜 (memoryDate)
@@ -51,9 +52,49 @@
 
 ---
 
-## 3. 인증 / 사용자 (v3과 동일)
+## 3. 인증 / 사용자
 
-`POST /auth/signup`, `POST /auth/login`, `POST /auth/refresh`, `GET /users/me`, `PATCH /users/me/profile` — v3 형식 유지.
+> 앱에서 기록을 남기는 사용자를 **수집가**라고 부른다. `name` = 기록 카드에 보이는 수집가 이름.
+>
+> **전시 운영(현재)**: 서버 `SIGNUP_ENABLED=false`(기본)로 가입을 막는다. 운영진이 전시 기기마다 시드 수집가 계정으로 한 번 로그인해 두고,
+> 관람객 기록은 모두 그 계정으로 올라간다. 앱은 전시 모드(`EXHIBITION_MODE`, 기본 true)에서 로그인·가입·로그아웃을 관람객에게 보이지 않는다.
+> 플레이스토어 배포 시 둘 다 반대로 켠다.
+
+### 인증 응답 공통 구조 (signup · login · refresh)
+```json
+{ "success": true, "data": {
+  "accessToken": "jwt",          // 1시간. Authorization: Bearer 로 부착
+  "refreshToken": "jwt",         // 30일. 앱이 기기 보안 저장소에 보관
+  "user": { "userId": "uuid", "email": "collector@example.com", "name": "수집가" }
+} }
+```
+
+### POST /auth/signup
+```json
+{ "email": "collector@example.com", "password": "8자이상", "name": "수집가" }
+```
+| 필드 | 규칙 |
+|---|---|
+| email | 이메일 형식, ≤255. 서버가 소문자·앞뒤 공백 제거로 저장 |
+| password | 8–72자. 서버는 scrypt 해시만 저장 |
+| name | 1–50자 |
+- 응답 201: 인증 응답. 에러 `DUPLICATE_EMAIL`(409), `INVALID_PARAMETER`(400), `FORBIDDEN`(403 — `SIGNUP_ENABLED=false` 일 때).
+
+### POST /auth/login
+```json
+{ "email": "collector@example.com", "password": "..." }
+```
+- 응답 200: 인증 응답. 이메일이 없거나 비밀번호가 틀리면 둘 다 `UNAUTHORIZED`(401, 같은 메시지).
+
+### POST /auth/refresh
+```json
+{ "refreshToken": "jwt" }
+```
+- 응답 200: **새** 인증 응답(access·refresh 둘 다 새로). 쓴 refresh 토큰은 바로 무효(회전) — 같은 토큰으로 두 번 갱신 불가.
+- 만료·무효·이미 쓴 토큰 → `UNAUTHORIZED`(401). 앱은 이때 로그아웃 상태로 돌아간다.
+- 앱 동작: 보호된 요청이 401 이면 refresh 를 한 번 시도하고 성공하면 원래 요청을 한 번 재시도한다.
+
+### (미구현) `GET /users/me`, `PATCH /users/me/profile` — Auth_02 프로필 단계에서 정의
 
 ---
 
@@ -62,8 +103,9 @@
 > 장소 = 좌표 + 지금 이름. 같은 자리의 옛 이름은 각 기록의 `placeNameThen`으로 남는다.
 
 ### GET /places
-- 지도 핀 목록.
-- Query: `bbox`(선택, `minLng,minLat,maxLng,maxLat`), `usageType`(선택), `page`, `size`(최대 500)
+- 지도 핀 목록 · 장소 검색(기록할 곳 고르기).
+- Query: `bbox`(선택, `minLng,minLat,maxLng,maxLat`), `usageType`(선택), `q`(선택, ≤50자 — 지금 이름 또는 주소에 포함, 대소문자 무시), `page`, `size`(최대 500)
+- 정렬: 이름 오름차순.
 ```json
 { "success": true, "data": { "items": [
   { "placeId": "uuid", "name": "○○카페", "usageType": "카페",
@@ -93,14 +135,37 @@
   "address": "...", "sinceYear": 2019, "thumbnailUrl": "https://storage/..." }
 ```
 - `name`, `latitude`, `longitude` 필수. 응답 201 `{ placeId }`.
-- 비고: 초기엔 운영자 큐레이션 권장(요구사항 Sys_01).
+- 비고: 초기엔 운영자 큐레이션 권장(요구사항 Sys_01). 앱의 기록 흐름은 아래 `POST /places/resolve` 를 쓴다.
+
+### GET /places/candidates  ← 영천의 실제 장소 검색 (기록할 곳 고르기)
+- 네이버 검색 '지역'을 NAVER API HUB(`naverapihub.apigw.ntruss.com/search/v1/local`, 헤더 `X-NCP-APIGW-API-KEY-ID`/`X-NCP-APIGW-API-KEY`)로 서버가 대신 불러, **주소가 '영천시'인 곳만** 돌려준다. 키는 서버에만 둔다.
+- 네이버 지역 검색은 한 번에 최대 5건이고 위치 범위를 지정할 수 없어서, 검색어에 '영천'이 없으면 앞에 붙여 보낸다("카페" → "영천 카페"). 그래서 결과는 **최대 5곳**이다.
+- Query: `q`(필수, 1~50자). 페이지 없음.
+- `placeId`: 이미 우리 DB에 있는 장소(같은 이름 · 50m 안)면 그 id, 아니면 `null`.
+- 인증 불필요(로그인 전에도 고르기 가능, 로그인은 보관할 때).
+```json
+{ "success": true, "data": { "items": [
+  { "name": "○○카페 영천점", "category": "음식점 > 카페", "address": "경북 영천시 ...",
+    "latitude": 35.97, "longitude": 128.93, "placeId": null }
+] } }
+```
+- 에러 `PLACE_SEARCH_UNAVAILABLE`(503) — 앱은 이 칸만 안내하고 우리 DB 장소·축제 검색은 그대로 보여준다.
+
+### POST /places/resolve  (인증)  ← 장소 확정(찾거나 만들기)
+- 지도에서 상표(장소 이름)를 눌렀거나 '영천의 장소'에서 고른 곳을, 기록을 **보관하는 순간** 우리 장소로 확정한다. (누르기만 하고 보관하지 않으면 DB에 아무것도 생기지 않는다)
+- Body: `{ "name": "○○카페", "latitude": 35.97, "longitude": 128.93, "address": "경북 영천시 ..." }` — `address` 선택.
+- 규칙: **같은 이름(공백·대소문자 무시) + 50m 안**의 장소가 있으면 그 장소, 없으면 새로 만든다(만든 사람 = 요청자).
+  같은 자리라도 이름이 다르면 다른 장소다(ERD v5 — 같은 자리 장소는 합치지 않는다).
+- `address` 가 없으면 서버가 이름으로 지역 검색해 같은 이름·100m 안·영천시인 결과의 주소를 채운다(못 찾으면 비워 둔다. 실패해도 확정은 된다).
+- 응답 200 `{ "placeId": "uuid", "created": true }`
 
 ---
 
 ## 5. 축제
 
 ### GET /events
-- 지도 핀 목록. **위치(latitude·longitude)가 있는 축제만.**
+- 지도 핀 목록 · 축제 검색. **위치(latitude·longitude)가 있는 축제만.**
+- Query: `q`(선택, ≤50자 — 이름 또는 주소에 포함). 페이지네이션 없음(축제 수가 적음).
 ```json
 { "success": true, "data": { "items": [
   { "eventId": "uuid", "name": "영천 축제", "latitude": 35.96, "longitude": 128.94,
@@ -168,7 +233,7 @@ v3의 `GET /eras`, `GET /eras/{eraId}/map-layers`, `GET /place-eras/{id}`, `POST
 | memoryDate | string | 아니오 | §2 형식. 생략 시 `XXXX.XX.XX` |
 | placeNameThen | string(≤150) | 아니오 | 그때 이 자리의 이름 |
 | content | text | 조건부 | photoUrls 없으면 필수 |
-| photoUrls | string[] (≤10) | 조건부 | content 없으면 1개 이상 |
+| photoUrls | string[] (≤5) | 조건부 | content 없으면 1개 이상 |
 - 응답 201: 생성된 스토리. 에러 `INVALID_PARAMETER`(앵커·내용·날짜 규칙), `PLACE_NOT_FOUND`, `EVENT_NOT_FOUND`.
 - 부수효과(예정): 작성자 `story_count` 증가 → 뱃지 트리거.
 
@@ -190,5 +255,11 @@ v3 §7(프리사인 업로드), §8(뱃지)과 동일.
 ## 변경 이력
 | 날짜 | 버전 | 내용 |
 |---|---|---|
+| 2026-11-08 | v4.5.1 | 지역 검색 호출을 NAVER API HUB 로 이관(주소·헤더 변경, 앱 계약은 그대로) |
+| 2026-11-08 | v4.5 | 영천 장소 검색을 카카오 → **네이버 지역 검색**으로 교체(지도와 같은 네이버 데이터). candidates 는 최대 5곳·페이지 없음(옛 앱이 보내는 `page` 는 받기만 하고 무시) |
+| 2026-11-07 | v4.4 | §4 `GET /places/candidates`(영천 실제 장소 검색), `POST /places/resolve`(찾거나 만들기), 에러 `PLACE_SEARCH_UNAVAILABLE`(503) |
+| 2026-11-07 | v4.3 | 전시 운영: `SIGNUP_ENABLED`(기본 false)면 signup 403 `FORBIDDEN` |
+| 2026-10-20 | v4.2 | §3 인증 확정(signup·login·refresh 요청/응답, refresh 회전), `GET /places`·`GET /events` 에 검색어 `q` 추가 |
+| 2026-10-14 | v4.1 | 스토리 사진 photoUrls 최대 10 → 5장 |
 | 2026-10-10 | v4 | 시대·과거 지도 API 삭제, 장소/축제 타임라인(`/places/{id}/stories`, `/events/{id}/stories`, order=asc/desc), 기억 날짜(부분 날짜)·placeNameThen, 축제 좌표, 에러 코드 표 |
 | 2026-09-10 | v3 | DB v4 동기화: place_era, 10년 시대, 스토리 통합, 프리사인 업로드 |

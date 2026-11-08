@@ -3,19 +3,23 @@ import 'package:flutter/material.dart';
 import '../../../data/models/story_model.dart';
 import '../../theme/retro_colors.dart';
 import '../../theme/retro_text_styles.dart';
-import '../retro/stamp_badge.dart';
-import '../split_flap/flap_text.dart';
-import 'story_photo_strip.dart';
+import '../photo/photo_slider.dart';
 
-// 기록 카드 한 장 — 옛 입장권/메모지 느낌. 날짜는 작은 숫자판, "그때 이름"은 도장.
+// 기록 카드 한 장 — 옛 입장권/메모지 느낌.
+// 맨 위 "당시 ○○" (그때 이름이 지금 이름과 다를 때만) · 글 · 사진 슬라이드 · 작성자 이름.
+// 날짜는 카드 밖 머리(story_date_header)가 보여준다.
 class StoryCard extends StatelessWidget {
-  const StoryCard({super.key, required this.story});
+  const StoryCard({super.key, required this.story, this.currentName});
 
   final StoryModel story;
 
+  /// 지금 이름. 그때 이름과 같으면 "당시 ○○" 줄을 비운다.
+  final String? currentName;
+
   @override
   Widget build(BuildContext context) {
-    final nameThen = story.placeNameThen;
+    final nameThen = story.placeNameThen?.trim();
+    final showNameThen = nameThen != null && nameThen.isNotEmpty && nameThen != currentName?.trim();
     final content = story.content;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -25,28 +29,19 @@ class StoryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  FlapText(story.memoryDate.pattern, tileWidth: 13, tileHeight: 19, gap: 1.5),
-                  const SizedBox(width: 12),
-                  if (nameThen != null)
-                    Expanded(
-                      child: Align(alignment: Alignment.centerRight, child: StampBadge('그때 · $nameThen')),
-                    ),
-                ],
-              ),
-              if (content != null) ...[
-                const SizedBox(height: 10),
-                Text(content, style: RetroTextStyles.body),
+              if (showNameThen) ...[
+                Text('당시 $nameThen', style: RetroTextStyles.sectionLabel),
+                const SizedBox(height: 8),
               ],
+              if (content != null) Text(content, style: RetroTextStyles.body),
               if (story.photos.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                StoryPhotoStrip(photos: story.photos),
+                PhotoSlider(images: [for (final p in story.photos) NetworkImage(p.imageUrl)]),
               ],
               const SizedBox(height: 10),
               const Divider(height: 1, color: RetroColors.paperLine),
               const SizedBox(height: 6),
-              Text('기록 · ${story.user.name}', style: RetroTextStyles.caption),
+              Text(story.user.name, style: RetroTextStyles.caption),
             ],
           ),
         ),

@@ -16,8 +16,8 @@ class FlapDigitWheel extends StatefulWidget {
     required this.onChanged,
     this.symbols = flapSymbols,
     this.semanticLabel,
-    this.width = 36,
-    this.height = 54,
+    this.width = 28,
+    this.height = 56,
   });
 
   final String value;

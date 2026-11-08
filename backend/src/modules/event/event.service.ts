@@ -10,8 +10,9 @@ import { EventRepository } from './event.repository';
 export class EventService {
   constructor(private readonly eventRepository: EventRepository) {}
 
-  async listPins(): Promise<{ items: EventPinResponse[] }> {
-    const rows = await this.eventRepository.findPins();
+  // 지도 핀 목록 · 축제 검색(keyword)
+  async listPins(keyword?: string): Promise<{ items: EventPinResponse[] }> {
+    const rows = await this.eventRepository.findPins(keyword);
     return { items: rows.map(toEventPinResponse) };
   }
 

@@ -44,7 +44,7 @@ class EventHeader extends StatelessWidget {
               spacing: 10,
               runSpacing: 8,
               children: [
-                for (final o in event.occurrences) FlapText('${o.year}', tileWidth: 14, tileHeight: 20, gap: 1.5),
+                for (final o in event.occurrences) FlapText('${o.year}', tileWidth: 11, tileHeight: 22, gap: 1.5),
               ],
             ),
           ],

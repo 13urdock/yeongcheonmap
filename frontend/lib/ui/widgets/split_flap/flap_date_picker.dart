@@ -7,19 +7,23 @@ import 'flap_digit_wheel.dart';
 import 'flap_group_frame.dart';
 
 // 기억 날짜 입력용 공항 숫자판: [Y][Y][Y][Y] . [M][M] . [D][D]
-// 각 칸을 위아래로 끌어 돌린다. 모르는 자리는 X 로 둔다. 월·일 칸은 상한선 안의 숫자만 돈다(memory_date_digit_rules).
+// 각 칸을 위아래로 끌어 돌린다. 모르는 자리는 X 로 둔다. 연도·월·일 칸은 상한선 안의 숫자만 돈다(memory_date_digit_rules).
 // 상태는 갖지 않고 부모(provider)에 위임.
 class FlapDatePicker extends StatelessWidget {
   const FlapDatePicker({
     super.key,
     required this.pattern,
     required this.onDigitChanged,
-    this.tileWidth = 36,
-    this.tileHeight = 54,
+    required this.currentYear,
+    this.tileWidth = 28,
+    this.tileHeight = 56,
   });
 
   final MemoryDatePattern pattern;
   final void Function(int index, String digit) onDigitChanged;
+
+  /// 연도 칸 상한선 (올해)
+  final int currentYear;
   final double tileWidth;
   final double tileHeight;
 
@@ -46,7 +50,7 @@ class FlapDatePicker extends StatelessWidget {
         for (var i = start; i < end; i++)
           FlapDigitWheel(
             value: pattern.digits[i],
-            symbols: allowedSymbolsAt(pattern, i),
+            symbols: allowedSymbolsAt(pattern, i, currentYear: currentYear),
             onChanged: (digit) => onDigitChanged(i, digit),
             semanticLabel: '${_digitNames[i]} 자리',
             width: tileWidth,
@@ -56,13 +60,13 @@ class FlapDatePicker extends StatelessWidget {
 
   // 그룹 사이 마침표
   Widget _dot() => SizedBox(
-        width: tileWidth * 0.5,
+        width: tileHeight * 0.25,
         height: tileHeight + 10,
         child: Align(
           alignment: const Alignment(0, 0.75),
           child: Container(
-            width: tileWidth * 0.16,
-            height: tileWidth * 0.16,
+            width: tileHeight * 0.09,
+            height: tileHeight * 0.09,
             decoration: const BoxDecoration(color: RetroColors.ink, shape: BoxShape.circle),
           ),
         ),

@@ -10,3 +10,6 @@ build/
 /android/key.properties
 /android/app/*.jks
 CLAUDE.md
+# 배포용 환경값 (.env.production 등) — 견본(.env.example)만 커밋
+.env.*
+!.env.example

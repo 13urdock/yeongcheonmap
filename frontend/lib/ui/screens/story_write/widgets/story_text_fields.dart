@@ -19,7 +19,9 @@ class StoryTextFields extends StatelessWidget {
         if (asksNameThen) ...[
           const Text('그때 이 자리의 이름 (선택)', style: RetroTextStyles.sectionLabel),
           const SizedBox(height: 6),
-          TextField(
+          // 장소↔축제를 바꿔 이 칸이 사라졌다 다시 생겨도 적어 둔 값이 보이게 initialValue 로 연결
+          TextFormField(
+            initialValue: write.placeNameThen,
             maxLength: 150,
             onChanged: write.setPlaceNameThen,
             decoration: const InputDecoration(hintText: '예: 중앙분식', counterText: ''),
@@ -34,7 +36,7 @@ class StoryTextFields extends StatelessWidget {
           maxLength: 5000,
           onChanged: write.setContent,
           style: RetroTextStyles.body,
-          decoration: const InputDecoration(hintText: '그때 이곳에서 있었던 일을 적어 주세요', counterText: ''),
+          decoration: const InputDecoration(hintText: '그때의 추억을 적어주세요.', counterText: ''),
         ),
       ],
     );

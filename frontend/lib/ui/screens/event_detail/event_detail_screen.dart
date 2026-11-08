@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../data/models/anchor_target.dart';
 import '../../../data/models/event_detail_model.dart';
 import '../../../data/models/timeline_anchor.dart';
 import '../../../data/repositories/event_repository.dart';
@@ -45,7 +46,7 @@ class _EventDetailView extends StatelessWidget {
     final timeline = context.read<TimelineProvider>();
     final result = await Navigator.of(context).pushNamed(
       AppRoutes.storyWrite,
-      arguments: StoryWriteArgs(anchor: EventAnchor(event.eventId), anchorName: event.name),
+      arguments: StoryWriteArgs(initialTarget: AnchorTarget(anchor: EventAnchor(event.eventId), name: event.name)),
     );
     if (result == true) await timeline.refresh();
   }
@@ -58,7 +59,7 @@ class _EventDetailView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('축제의 기억')),
       body: switch ((event, failure)) {
-        (final EventDetailModel e, _) => TimelineScrollView(header: EventHeader(event: e)),
+        (final EventDetailModel e, _) => TimelineScrollView(header: EventHeader(event: e), currentName: e.name),
         (null, final Failure f) => Padding(
             padding: const EdgeInsets.all(16),
             child: FailureNotice(failure: f, onRetry: () => context.read<EventDetailProvider>().load()),

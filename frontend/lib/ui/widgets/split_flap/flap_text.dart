@@ -6,7 +6,7 @@ import 'flap_tile.dart';
 // 읽기 전용 숫자판 글자열. 예: 연도 머리글 "199X", 기록 카드의 "1995.0X.1X".
 // '.' 은 칸 대신 작은 점으로 그린다.
 class FlapText extends StatelessWidget {
-  const FlapText(this.text, {super.key, this.tileWidth = 20, this.tileHeight = 30, this.gap = 2});
+  const FlapText(this.text, {super.key, this.tileWidth = 16, this.tileHeight = 32, this.gap = 2});
 
   final String text;
   final double tileWidth;
@@ -27,15 +27,16 @@ class FlapText extends StatelessWidget {
     );
   }
 
+  // 점 크기는 칸 높이 기준 (칸이 좁아져도 점이 너무 작아지지 않게)
   Widget _dot() => SizedBox(
-        width: tileWidth * 0.35,
+        width: tileHeight * 0.22,
         height: tileHeight,
         child: Align(
           alignment: Alignment.bottomCenter,
           child: Container(
-            width: tileWidth * 0.18,
-            height: tileWidth * 0.18,
-            margin: EdgeInsets.only(bottom: tileHeight * 0.1),
+            width: tileHeight * 0.1,
+            height: tileHeight * 0.1,
+            margin: EdgeInsets.only(bottom: tileHeight * 0.08),
             decoration: const BoxDecoration(color: RetroColors.ink, shape: BoxShape.circle),
           ),
         ),

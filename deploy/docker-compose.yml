@@ -1,0 +1,61 @@
+# 영천 기억 지도 — 서버 한 대 구성 (Lightsail 서울)
+#   caddy : 80/443 을 받아 HTTPS 처리 → api 로 넘김
+#   api   : NestJS (기동 때 prisma migrate deploy)
+#   db    : PostgreSQL (바깥에 포트를 열지 않음, 데이터는 pgdata 볼륨)
+# 값은 같은 폴더의 .env 에서 읽는다 (.env.example 참고)
+name: yeongcheonmap
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: yeongcheonmap
+      POSTGRES_USER: yeongcheon
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?deploy/.env 에 POSTGRES_PASSWORD 를 넣어 주세요}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yeongcheon -d yeongcheonmap"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://yeongcheon:${POSTGRES_PASSWORD}@db:5432/yeongcheonmap
+      PORT: "8080"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?deploy/.env 에 JWT_ACCESS_SECRET 를 넣어 주세요}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?deploy/.env 에 JWT_REFRESH_SECRET 를 넣어 주세요}
+      SIGNUP_ENABLED: ${SIGNUP_ENABLED:-false}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+      SEED_SAMPLE_DATA: "false"
+      NAVER_SEARCH_CLIENT_ID: ${NAVER_SEARCH_CLIENT_ID:-}
+      NAVER_SEARCH_CLIENT_SECRET: ${NAVER_SEARCH_CLIENT_SECRET:-}
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?deploy/.env 에 APP_DOMAIN 을 넣어 주세요}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

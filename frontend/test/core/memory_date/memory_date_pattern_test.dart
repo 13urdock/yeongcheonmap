@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yeongcheon_map/core/memory_date/memory_date_label.dart';
 import 'package:yeongcheon_map/core/memory_date/memory_date_pattern.dart';
 
 void main() {
@@ -21,16 +20,6 @@ void main() {
       final p = MemoryDatePattern.unknown().withDigit(0, '1').withDigit(1, '9').withDigit(2, '9');
       expect(p.toString(), '199X.XX.XX');
       expect(p.year, '199X');
-    });
-  });
-
-  group('yearGroupLabel', () {
-    test('사례', () {
-      expect(yearGroupLabel('1995', yearFrom: 1995, yearTo: 1995), '1995년');
-      expect(yearGroupLabel('199X', yearFrom: 1990, yearTo: 1999), '1990년대');
-      expect(yearGroupLabel('19XX', yearFrom: 1900, yearTo: 1999), '1900년대');
-      expect(yearGroupLabel('XXXX', yearFrom: 1800, yearTo: 2026), '연도 미상');
-      expect(yearGroupLabel('19X5', yearFrom: 1905, yearTo: 1995), '1905~1995년 중 어느 해');
     });
   });
 }

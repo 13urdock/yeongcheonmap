@@ -17,10 +17,21 @@ export type EventDetailRow = Prisma.EventGetPayload<{ include: typeof detailIncl
 export class EventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 지도에 올릴 수 있는(좌표가 있는) 축제만
-  findPins(): Promise<EventPinRow[]> {
+  // 지도에 올릴 수 있는(좌표가 있는) 축제만. keyword 가 있으면 이름·주소 부분 일치
+  findPins(keyword?: string): Promise<EventPinRow[]> {
     return this.prisma.event.findMany({
-      where: { latitude: { not: null }, longitude: { not: null } },
+      where: {
+        latitude: { not: null },
+        longitude: { not: null },
+        ...(keyword
+          ? {
+              OR: [
+                { name: { contains: keyword, mode: 'insensitive' } },
+                { address: { contains: keyword, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
       include: withStoryCount,
       orderBy: { name: 'asc' },
     });

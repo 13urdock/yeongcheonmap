@@ -29,7 +29,7 @@ export class CreateStoryDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(10)
+  @ArrayMaxSize(5)
   @IsUrl({}, { each: true })
   photoUrls?: string[];
 }

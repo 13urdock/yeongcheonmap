@@ -14,7 +14,7 @@ import { PlaceRepository } from './place.repository';
 export class PlaceService {
   constructor(private readonly placeRepository: PlaceRepository) {}
 
-  // 지도 핀 목록
+  // 지도 핀 목록 · 장소 검색(q)
   async listPins(query: QueryPlacesDto): Promise<PagedResult<PlacePinResponse>> {
     const bbox = query.bbox ? parseBbox(query.bbox) : undefined;
     if (bbox === null) {
@@ -22,7 +22,7 @@ export class PlaceService {
     }
 
     const [rows, totalCount] = await this.placeRepository.findPins(
-      { bbox, usageType: query.usageType },
+      { bbox, usageType: query.usageType, keyword: query.q?.trim() || undefined },
       query.skip,
       query.size,
     );

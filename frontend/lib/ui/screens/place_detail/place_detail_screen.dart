@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../data/models/anchor_target.dart';
 import '../../../data/models/place_detail_model.dart';
 import '../../../data/models/timeline_anchor.dart';
 import '../../../data/repositories/place_repository.dart';
@@ -45,7 +46,7 @@ class _PlaceDetailView extends StatelessWidget {
     final timeline = context.read<TimelineProvider>();
     final result = await Navigator.of(context).pushNamed(
       AppRoutes.storyWrite,
-      arguments: StoryWriteArgs(anchor: PlaceAnchor(place.placeId), anchorName: place.name),
+      arguments: StoryWriteArgs(initialTarget: AnchorTarget(anchor: PlaceAnchor(place.placeId), name: place.name)),
     );
     if (result == true) await timeline.refresh();
   }
@@ -58,7 +59,7 @@ class _PlaceDetailView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('기억의 자리')),
       body: switch ((place, failure)) {
-        (final PlaceDetailModel p, _) => TimelineScrollView(header: PlaceHeader(place: p)),
+        (final PlaceDetailModel p, _) => TimelineScrollView(header: PlaceHeader(place: p), currentName: p.name),
         (null, final Failure f) => Padding(
             padding: const EdgeInsets.all(16),
             child: FailureNotice(failure: f, onRetry: () => context.read<PlaceDetailProvider>().load()),

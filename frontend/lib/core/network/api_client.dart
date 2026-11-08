@@ -2,14 +2,21 @@ import 'package:dio/dio.dart';
 
 import 'api_exception.dart';
 
-/// 로그인 후 access 토큰을 돌려주는 콜백. auth 구현 전에는 null(비인증 호출만).
+/// 지금 쓸 access 토큰을 돌려주는 콜백. 로그인 전이면 null(비인증 호출).
 typedef AccessTokenProvider = String? Function();
 
+/// access 토큰이 거절(401)됐을 때 재발급을 요청하는 콜백. 새 토큰을 받았으면 true.
+typedef TokenRefresher = Future<bool> Function();
+
 // 모든 HTTP 호출이 거치는 단 하나의 클라이언트.
-// 역할: base URL·타임아웃·토큰 부착, 응답 envelope 해석({ success, data } → data / { success, error } → ApiException).
+// 역할: base URL·타임아웃·토큰 부착, 401 이면 토큰 갱신 후 한 번 재시도,
+// 응답 envelope 해석({ success, data } → data / { success, error } → ApiException).
+// 토큰 보관·갱신 방법은 모른다 — app.dart 가 AuthRepository 를 두 콜백으로 연결한다.
 class ApiClient {
-  ApiClient({required String baseUrl, AccessTokenProvider? accessTokenProvider})
-      : _dio = Dio(
+  ApiClient({required String baseUrl, AccessTokenProvider? accessTokenProvider, TokenRefresher? tokenRefresher})
+      : _accessTokenProvider = accessTokenProvider,
+        _tokenRefresher = tokenRefresher,
+        _dio = Dio(
           BaseOptions(
             baseUrl: baseUrl,
             connectTimeout: const Duration(seconds: 10),
@@ -19,29 +26,50 @@ class ApiClient {
             validateStatus: (_) => true,
           ),
         ) {
-    _dio.interceptors.add(_AuthHeaderInterceptor(accessTokenProvider));
+    _dio.interceptors.add(_AuthHeaderInterceptor(_currentToken));
   }
 
   final Dio _dio;
+  final AccessTokenProvider? _accessTokenProvider;
+  final TokenRefresher? _tokenRefresher;
 
   /// GET 요청 → envelope 의 data(Map)를 반환
   Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? query}) async {
     return _send(() => _dio.get<dynamic>(path, queryParameters: query));
   }
 
-  /// POST 요청 → envelope 의 data(Map)를 반환
-  Future<Map<String, dynamic>> post(String path, {Object? body}) async {
-    return _send(() => _dio.post<dynamic>(path, data: body));
+  /// POST 요청 → envelope 의 data(Map)를 반환.
+  /// [retryOnUnauthorized] 가 false 면 401 이어도 토큰 갱신을 시도하지 않는다(인증 API 자신용).
+  Future<Map<String, dynamic>> post(String path, {Object? body, bool retryOnUnauthorized = true}) async {
+    return _send(() => _dio.post<dynamic>(path, data: body), retryOnUnauthorized: retryOnUnauthorized);
   }
 
-  Future<Map<String, dynamic>> _send(Future<Response<dynamic>> Function() request) async {
-    final Response<dynamic> response;
+  Future<Map<String, dynamic>> _send(
+    Future<Response<dynamic>> Function() request, {
+    bool retryOnUnauthorized = true,
+  }) async {
+    final sentWithToken = _currentToken() != null;
+    var response = await _fetch(request);
+
+    // 토큰을 붙였는데 401 → 갱신에 성공하면 같은 요청을 한 번만 다시 보낸다(인터셉터가 새 토큰을 붙임)
+    final refresher = _tokenRefresher;
+    if (response.statusCode == 401 && sentWithToken && retryOnUnauthorized && refresher != null) {
+      if (await refresher()) response = await _fetch(request);
+    }
+    return _unwrapEnvelope(response);
+  }
+
+  Future<Response<dynamic>> _fetch(Future<Response<dynamic>> Function() request) async {
     try {
-      response = await request();
+      return await request();
     } on DioException catch (e) {
       throw NetworkException(_networkMessage(e));
     }
-    return _unwrapEnvelope(response);
+  }
+
+  String? _currentToken() {
+    final token = _accessTokenProvider?.call();
+    return token == null || token.isEmpty ? null : token;
   }
 
   // Dio 의 영어 기술 메시지 대신, 사용자가 이해할 수 있는 한국어 안내로 바꾼다.
@@ -49,7 +77,7 @@ class ApiClient {
     return switch (e.type) {
       DioExceptionType.connectionTimeout ||
       DioExceptionType.connectionError =>
-        '서버에 연결할 수 없어요. 서버가 켜져 있는지, 주소(API_BASE_URL)가 맞는지 확인해 주세요.',
+        '서버에 연결할 수 없어요. 서버가 켜져 있는지, 주소(${e.requestOptions.baseUrl})가 맞는지 확인해 주세요.',
       DioExceptionType.sendTimeout ||
       DioExceptionType.receiveTimeout =>
         '서버 응답이 너무 늦어요. 잠시 후 다시 시도해 주세요.',
@@ -83,16 +111,16 @@ class ApiClient {
   }
 }
 
-// Authorization: Bearer {accessToken} 부착 (토큰이 있을 때만)
+// Authorization: Bearer {accessToken} 부착 (토큰이 있을 때만). 재시도 때도 매번 최신 토큰을 읽는다.
 class _AuthHeaderInterceptor extends Interceptor {
   _AuthHeaderInterceptor(this._tokenProvider);
 
-  final AccessTokenProvider? _tokenProvider;
+  final AccessTokenProvider _tokenProvider;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final token = _tokenProvider?.call();
-    if (token != null && token.isNotEmpty) {
+    final token = _tokenProvider();
+    if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
     handler.next(options);

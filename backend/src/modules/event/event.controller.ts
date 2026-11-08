@@ -1,4 +1,5 @@
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { QueryEventsDto } from './dto/query-events.dto';
 import { EventService } from './event.service';
 
 // 라우팅만. (축제 타임라인 GET /events/:id/stories 는 story 모듈 담당)
@@ -6,10 +7,10 @@ import { EventService } from './event.service';
 export class EventController {
   constructor(private readonly eventService: EventService) {}
 
-  // GET /events
+  // GET /events?q=
   @Get()
-  listPins() {
-    return this.eventService.listPins();
+  listPins(@Query() query: QueryEventsDto) {
+    return this.eventService.listPins(query.q?.trim() || undefined);
   }
 
   // GET /events/:eventId

@@ -1,35 +1,40 @@
-// 개발용 시드 (ERD v5): 시드 사용자 + 샘플 장소 3곳 + 샘플 축제 2개 + 다양한 기억 날짜의 기록.
+// 개발용 시드 (ERD v5): 시드 사용자(수집가). SEED_SAMPLE_DATA=true 일 때만 가상 샘플(장소 3·축제 2·기록 10)도.
 // 실행: npm run prisma:seed  (고정 ID + upsert 라 여러 번 실행해도 안전)
-// 이름·좌표는 모두 가상 샘플이다. 운영 데이터는 Sys_01 절차로 등록한다.
+// 샘플의 이름·좌표는 모두 가상이다. 실제 장소는 앱에서 지도 상표를 누르거나 '영천의 장소' 검색으로 기록하면 생긴다.
+// 이미 들어간 샘플 지우기: npm run prisma:clear-samples
 import 'dotenv/config';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { createPrismaPgAdapter } from '../src/prisma/prisma-adapter.factory';
 import { resolveMemoryDate } from '../src/common/memory-date/memory-date.resolver';
+import { hashPassword } from '../src/modules/auth/password-hasher';
+import { SAMPLE_EVENT_IDS, SAMPLE_PLACE_IDS } from './sample-ids';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL 이 필요합니다 (.env)');
 const prisma = new PrismaClient({ adapter: createPrismaPgAdapter(databaseUrl) });
 
 const SEED_USER_ID = 'b0000000-0000-4000-8000-000000000001';
-const PLACE = {
-  cafe: 'c0000000-0000-4000-8000-000000000001',
-  station: 'c0000000-0000-4000-8000-000000000002',
-  market: 'c0000000-0000-4000-8000-000000000003',
-};
-const EVENT = {
-  festival: 'e0000000-0000-4000-8000-000000000001',
-  starlight: 'e0000000-0000-4000-8000-000000000002',
-};
+const PLACE = { cafe: SAMPLE_PLACE_IDS[0], station: SAMPLE_PLACE_IDS[1], market: SAMPLE_PLACE_IDS[2] };
+const EVENT = { festival: SAMPLE_EVENT_IDS[0], starlight: SAMPLE_EVENT_IDS[1] };
+const WITH_SAMPLES = process.env.SEED_SAMPLE_DATA === 'true';
+
+// 시드 사용자(수집가) 로그인 비밀번호. .env 의 SEED_USER_PASSWORD 가 있으면 그걸로 로그인할 수 있다.
+// 비어 있으면 로그인 불가 값으로 둔다(운영 DB 에 아는 비밀번호가 남지 않게).
+async function seedPasswordHash(): Promise<string> {
+  const password = process.env.SEED_USER_PASSWORD;
+  return password ? hashPassword(password) : 'login-disabled';
+}
 
 async function seedUser(): Promise<void> {
+  const passwordHash = await seedPasswordHash();
   await prisma.user.upsert({
     where: { userId: SEED_USER_ID },
-    update: {},
+    update: { name: '수집가', passwordHash },
     create: {
       userId: SEED_USER_ID,
       email: 'seed@yeongcheonmap.local',
-      passwordHash: 'not-a-real-hash', // auth 모듈 구현 시 bcrypt 등으로 교체
-      name: '운영자',
+      passwordHash,
+      name: '수집가',
       profile: { create: { bio: '초기 데이터 등록용 계정' } },
     },
   });
@@ -97,10 +102,12 @@ async function seedStories(): Promise<void> {
 
 async function main(): Promise<void> {
   await seedUser();
-  await seedPlaces();
-  await seedEvents();
-  await seedStories();
-  console.log('seed done');
+  if (WITH_SAMPLES) {
+    await seedPlaces();
+    await seedEvents();
+    await seedStories();
+  }
+  console.log(WITH_SAMPLES ? 'seed done (가상 샘플 포함)' : 'seed done (수집가 계정만)');
 }
 
 main()

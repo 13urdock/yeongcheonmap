@@ -10,4 +10,15 @@ class MapConstants {
 
   /// 핀은 한 번에 이만큼 가져온다 (bbox 필터·페이지네이션은 이후 단계)
   static const int pinPageSize = 200;
+
+  /// 장소 고르기(검색) 결과는 이만큼만 보여준다 — 더 좁히려면 검색어를 더 적는다
+  static const int searchPageSize = 50;
+}
+
+// 기록(스토리) 관련 고정값
+class StoryConstants {
+  StoryConstants._();
+
+  /// 기록 하나에 붙일 수 있는 사진 수 (API 명세 v4 §7 photoUrls ≤5)
+  static const int maxPhotos = 5;
 }

@@ -9,7 +9,7 @@ import 'flap_hinge.dart';
 //   0.0~0.5: 이전 글자의 윗판이 0°→90° 로 접힘 (뒤에서 새 글자 윗판이 드러남)
 //   0.5~1.0: 새 글자의 아랫판이 90°→0° 로 펴짐 (그동안 이전 글자 아랫판이 보임)
 class FlapTile extends StatefulWidget {
-  const FlapTile({super.key, required this.char, this.width = 36, this.height = 54});
+  const FlapTile({super.key, required this.char, this.width = 28, this.height = 56});
 
   final String char;
   final double width;
