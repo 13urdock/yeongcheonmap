@@ -1,0 +1,70 @@
+# 백엔드 CI/CD
+# - PR·push: 테스트 + 빌드 (CI)
+# - main 에 push 되고 테스트가 통과하면: 서버에 SSH 로 접속해 deploy.sh 실행 (CD)
+# 필요한 GitHub Secrets (Settings > Secrets and variables > Actions):
+#   DEPLOY_HOST     서버 주소 (Static IP)
+#   DEPLOY_USER     ubuntu
+#   DEPLOY_SSH_KEY  서버에 등록한 배포 전용 개인키 (deploy/README.md 10단계)
+#   DEPLOY_HOST_KEY 서버 호스트 키 한 줄 (ssh-keyscan 결과) — 가짜 서버에 키를 보내지 않게
+name: backend
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', 'deploy/**', '.github/workflows/backend.yml']
+  pull_request:
+    paths: ['backend/**', '.github/workflows/backend.yml']
+  workflow_dispatch: # Actions 화면에서 손으로 다시 배포할 때
+
+# 배포가 겹치지 않게 (새 push 가 오면 진행 중인 테스트는 취소, 배포는 끝까지)
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # prisma generate 는 DB 에 접속하지 않지만 prisma.config.ts 가 값을 요구한다 (Dockerfile 과 같은 방식)
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx jest --ci
+      - run: npm run build
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: SSH 준비
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_HOST_KEY }}" > ~/.ssh/known_hosts
+      - name: 서버에서 deploy.sh
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            'bash ~/yeongcheonmap/deploy/scripts/deploy.sh'
+      - name: 동작 확인
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://map.burdocklab.com/api/v1/events || true)
+            echo "GET /events → $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "배포 후 API 가 200 을 돌려주지 않아요 — 서버에서 docker compose logs api 확인" && exit 1

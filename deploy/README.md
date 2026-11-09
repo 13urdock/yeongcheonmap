@@ -98,10 +98,42 @@ curl -s https://map.burdocklab.com/api/v1/events | head -c 300  # {"success":tru
 3. 폰에 설치 → 지도·검색·기록 보관이 되는지 확인 (노트북 서버 꺼 둔 상태로)
 
 ## 8. 코드 고친 뒤 다시 배포
-로컬에서 커밋·push → 서버에서 `bash ~/yeongcheonmap/deploy/scripts/deploy.sh`
+**10단계(자동 배포)를 해 뒀다면: `main` 에 push 하면 끝.** GitHub Actions 가 테스트 → 통과하면 서버에서 `deploy.sh` 실행 → `/events` 200 확인까지 한다. 결과는 GitHub 레포 > **Actions** 탭.
+- 자동 배포 대상: `backend/`·`deploy/`·워크플로 파일이 바뀐 push 만. 문서(`docs/`)·앱(`frontend/`)만 고친 push 는 배포 안 함.
+- 테스트가 실패하면 배포하지 않는다.
+- 다시 배포만 하고 싶을 때: Actions > **backend** > **Run workflow**.
+- 서버 `deploy/.env`(비밀값)는 git 에 없으므로 **새 환경변수가 생기면 서버에서 직접 추가한 뒤** push 할 것.
+
+10단계 전이거나 Actions 가 안 될 때(손으로): 로컬에서 커밋·push → 서버에서 `bash ~/yeongcheonmap/deploy/scripts/deploy.sh`
 - 스키마를 바꿨다면 로컬에서 `prisma migrate dev` 로 만든 마이그레이션 파일까지 커밋할 것 (서버는 `migrate deploy` 만 한다)
 
 ## 9. 운영 종료 (전시 후 1~2달)
 1. 마지막 백업: `backup.sh` → 드라이브에 있는지 확인
 2. Lightsail: **인스턴스 삭제 + 고정 IP 해제(삭제)** — 고정 IP 만 남겨 두면 요금이 계속 나간다
 3. Cloudflare DNS 에서 `map` 레코드 삭제
+
+## 10. 자동 배포 (GitHub Actions) 설정 — 1회
+워크플로: `.github/workflows/backend.yml`. GitHub 이 서버에 SSH 로 들어와 `deploy.sh` 를 실행하므로, **배포 전용 키**를 하나 만들어 서버에 등록하고 GitHub 에 맡긴다.
+
+1. 서버(Connect using SSH)에서 배포 전용 키 만들기·등록
+   ```bash
+   ssh-keygen -t ed25519 -f ~/gh_actions_deploy -N "" -C "github-actions-deploy"
+   cat ~/gh_actions_deploy.pub >> ~/.ssh/authorized_keys
+   cat ~/gh_actions_deploy          # 개인키 — 아래 DEPLOY_SSH_KEY 에 통째로 붙여넣기 (BEGIN ~ END 줄 포함)
+   ssh-keyscan -t ed25519 localhost 2>/dev/null | sed "s/^localhost/$(curl -s ifconfig.me)/"   # 호스트 키 한 줄 → DEPLOY_HOST_KEY
+   ```
+   - 마지막 줄 출력이 `13.55.192.211 ssh-ed25519 AAAA...` 형태인지 확인. (IP 가 다르게 나오면 맨 앞을 Static IP 로 고쳐서 넣기)
+   - 개인키를 복사해 넣은 뒤 서버에서 지우기: `rm ~/gh_actions_deploy` (공개키는 authorized_keys 에 이미 들어감)
+2. GitHub 레포 > **Settings** > **Environments** > **New environment** → 이름 `production`
+3. 같은 `production` 환경 > **Environment secrets** > **Add environment secret** 4개
+   | Name | Value |
+   |---|---|
+   | `DEPLOY_HOST` | `13.55.192.211` |
+   | `DEPLOY_USER` | `ubuntu` |
+   | `DEPLOY_SSH_KEY` | 1번의 개인키 전체 |
+   | `DEPLOY_HOST_KEY` | 1번 마지막 줄 |
+4. 워크플로 파일을 커밋·push → **Actions** 탭에서 `test` → `deploy` 가 초록색이면 완료.
+
+- 레포가 공개여도 Secrets 는 남에게 안 보이고, 다른 사람의 PR(포크)에서는 `deploy` 가 돌지 않는다(`main` push 만 배포).
+- 운영 종료(9단계) 때: GitHub Secrets 4개 삭제, 또는 워크플로 파일 삭제.
+- 키가 샜다고 의심되면: 서버 `~/.ssh/authorized_keys` 에서 `github-actions-deploy` 줄 삭제 → 1번부터 다시.
