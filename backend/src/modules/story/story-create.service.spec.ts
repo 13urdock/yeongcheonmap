@@ -1,6 +1,8 @@
 import { AppErrorCode } from '../../common/errors/app-error-code';
+import { AppException } from '../../common/errors/app.exception';
 import { EventService } from '../event/event.service';
 import { PlaceService } from '../place/place.service';
+import { PhotoUrlPolicy } from '../upload/photo-url.policy';
 import { StoryCreateService } from './story-create.service';
 import { StoryRepository } from './story.repository';
 
@@ -12,10 +14,12 @@ describe('StoryCreateService.create', () => {
   const repo = { create: jest.fn() };
   const placeService = { getPlaceOrThrow: jest.fn().mockResolvedValue({ placeId }) };
   const eventService = { getEventOrThrow: jest.fn() };
+  const photoUrlPolicy = { assertOwnPhotoUrls: jest.fn() };
   const service = new StoryCreateService(
     repo as unknown as StoryRepository,
     placeService as unknown as PlaceService,
     eventService as unknown as EventService,
+    photoUrlPolicy as unknown as PhotoUrlPolicy,
   );
 
   const storedRow = (data: Record<string, unknown>) => ({
@@ -83,5 +87,29 @@ describe('StoryCreateService.create', () => {
     await service.create({ placeId, content: '기억' }, userId);
     expect(placeService.getPlaceOrThrow).toHaveBeenCalledWith(placeId);
     expect(eventService.getEventOrThrow).not.toHaveBeenCalled();
+  });
+});
+
+describe('StoryCreateService.create — 사진 주소 정책', () => {
+  const placeId = '11111111-1111-4111-8111-111111111111';
+  const repo = { create: jest.fn() };
+  const policy = {
+    assertOwnPhotoUrls: jest.fn(() => {
+      throw new AppException(AppErrorCode.INVALID_PARAMETER, 'x');
+    }),
+  };
+  const service = new StoryCreateService(
+    repo as unknown as StoryRepository,
+    { getPlaceOrThrow: jest.fn() } as unknown as PlaceService,
+    { getEventOrThrow: jest.fn() } as unknown as EventService,
+    policy as unknown as PhotoUrlPolicy,
+  );
+
+  it('다른 사이트 사진 주소면 저장하지 않는다', async () => {
+    await expect(service.create({ placeId, photoUrls: ['https://evil.example/a.jpg'] }, 'u1')).rejects.toEqual(
+      expect.objectContaining({ code: AppErrorCode.INVALID_PARAMETER }),
+    );
+    expect(policy.assertOwnPhotoUrls).toHaveBeenCalledWith(['https://evil.example/a.jpg']);
+    expect(repo.create).not.toHaveBeenCalled();
   });
 });

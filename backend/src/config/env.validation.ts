@@ -36,6 +36,33 @@ export class EnvVariables {
   @IsOptional()
   @IsString()
   NAVER_SEARCH_CLIENT_SECRET?: string;
+
+  // (선택) 사진 저장소 — NCP Ncloud Storage(S3 호환). API 명세 §8.
+  // 하나라도 비면 서버는 뜨지만 사진 업로드(POST /uploads/presign)·사진 첨부가 STORAGE_UNAVAILABLE 로 막힌다.
+  @IsOptional()
+  @IsString()
+  STORAGE_ENDPOINT?: string;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_REGION?: string;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_BUCKET?: string;
+
+  /** 사진 공개 주소 앞부분. 예: https://yeongcheonmap.kr.ncloudstorage.com (끝 / 없이) */
+  @IsOptional()
+  @IsString()
+  STORAGE_PUBLIC_BASE_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_ACCESS_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_SECRET_KEY?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvVariables {

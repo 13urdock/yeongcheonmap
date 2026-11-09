@@ -9,7 +9,7 @@
 | 버전 | v4 |
 | Base URL | 개발: `http://localhost:8080/api/v1` (에뮬레이터에서는 `http://10.0.2.2:8080/api/v1`) |
 | DB | PostgreSQL / 이미지: 외부 스토리지 |
-| 최종 수정일 | 2026-11-07 |
+| 최종 수정일 | 2026-11-10 |
 
 ## 1. 공통 규약
 - 인증: JWT Bearer, `Authorization: Bearer {accessToken}`, `POST /auth/refresh`로 갱신.
@@ -29,6 +29,7 @@
 | `EVENT_NOT_FOUND` | 404 | |
 | `STORY_NOT_FOUND` | 404 | |
 | `DUPLICATE_EMAIL` | 409 | |
+| `STORAGE_UNAVAILABLE` | 503 | 사진 저장소(§8) 설정이 서버에 없음 |
 | `PLACE_SEARCH_UNAVAILABLE` | 503 | 영천 장소 검색(외부 지도 검색)을 지금 쓸 수 없음 — 키 미설정·외부 오류 |
 | `INTERNAL_ERROR` | 500 | |
 
@@ -233,7 +234,7 @@ v3의 `GET /eras`, `GET /eras/{eraId}/map-layers`, `GET /place-eras/{id}`, `POST
 | memoryDate | string | 아니오 | §2 형식. 생략 시 `XXXX.XX.XX` |
 | placeNameThen | string(≤150) | 아니오 | 그때 이 자리의 이름 |
 | content | text | 조건부 | photoUrls 없으면 필수 |
-| photoUrls | string[] (≤5) | 조건부 | content 없으면 1개 이상 |
+| photoUrls | string[] (≤5) | 조건부 | content 없으면 1개 이상. §8 `publicUrl` 만 허용 |
 - 응답 201: 생성된 스토리. 에러 `INVALID_PARAMETER`(앵커·내용·날짜 규칙), `PLACE_NOT_FOUND`, `EVENT_NOT_FOUND`.
 - 부수효과(예정): 작성자 `story_count` 증가 → 뱃지 트리거.
 
@@ -242,19 +243,66 @@ v3의 `GET /eras`, `GET /eras/{eraId}/map-layers`, `GET /place-eras/{id}`, `POST
 
 ---
 
-## 8. 이미지 업로드 · 9. 게임화
-v3 §7(프리사인 업로드), §8(뱃지)과 동일.
+## 8. 이미지 업로드 (프리사인, 2026-11-10 확정)
+
+사진 파일은 **서버를 거치지 않는다.** 서버는 스토리지에 직접 올릴 수 있는 임시 주소(프리사인 URL)만 발급하고, 앱이 그 주소로 파일을 PUT 한 뒤 스토리 저장 때 `publicUrl` 만 `photoUrls` 로 보낸다.
+
+- 스토리지: NCP **Ncloud Storage**(S3 호환, 한국). 버킷 `yeongcheonmap`, 서명 리전 `kr`, 엔드포인트 `https://kr.ncloudstorage.com`. 2026-11-10 시험 스크립트(`backend/scripts/storage-presign-test.mjs`)로 프리사인 PUT·익명 읽기 확인.
+- 읽기: 버킷 정책으로 **객체 읽기만 공개**(목록 조회·업로드는 비공개). 앱은 `publicUrl` 을 그대로 이미지로 띄운다.
+- 사진 공개 주소의 앞부분은 서버 환경변수 `STORAGE_PUBLIC_BASE_URL` 하나로 둔다(나중에 `photo.burdocklab.com` 으로 바꿔도 앱·API 계약은 그대로. 이미 저장된 주소는 옛 주소로 남으므로 바꿀 땐 옛 주소도 계속 열리게 둘 것).
+
+### POST /uploads/presign  (인증)
+```json
+{ "files": [ { "contentType": "image/jpeg", "size": 834512 } ] }
+```
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| files | object[] (1~5) | 예 | 올릴 사진 목록. 한 기록 최대 5장과 같은 상한 |
+| files[].contentType | string | 예 | `image/jpeg` · `image/png` · `image/webp` 중 하나 |
+| files[].size | int | 예 | 바이트. 1 ~ 10,485,760(10MB) |
+
+응답 200 (`items` 는 요청 `files` 와 같은 순서):
+```json
+{
+  "items": [
+    {
+      "uploadUrl": "https://yeongcheonmap.kr.ncloudstorage.com/stories/2026-11/9f1c...e2.jpg?X-Amz-Algorithm=...",
+      "method": "PUT",
+      "headers": { "Content-Type": "image/jpeg" },
+      "publicUrl": "https://yeongcheonmap.kr.ncloudstorage.com/stories/2026-11/9f1c...e2.jpg",
+      "expiresAt": "2026-11-10T01:30:00.000Z"
+    }
+  ]
+}
+```
+- 앱은 `uploadUrl` 로 `method` 와 `headers` 를 **그대로** 써서 파일 바이트를 보낸다(헤더가 다르면 서명 불일치 403). 유효 시간 **10분**.
+- 객체 키: `stories/{YYYY-MM}/{uuid}.{jpg|png|webp}` — 서버가 정한다(앱은 파일 이름을 정하지 않는다).
+- 에러: `INVALID_PARAMETER`(형식·크기·개수), `UNAUTHORIZED`, `STORAGE_UNAVAILABLE`(503, 서버에 저장소 설정 없음).
+- 한계: 프리사인 PUT 은 실제 파일 크기를 강제하지 못한다. 앱이 올리기 전에 jpeg 로 줄여서(긴 변 ~2000px) 보내는 것으로 지킨다.
+
+### 순서 (앱)
+1. 사진 고르기 → (압축) → `POST /uploads/presign`
+2. 받은 `uploadUrl` 들에 PUT (전부 2xx 여야 다음 단계)
+3. `POST /stories` 의 `photoUrls` 에 `publicUrl` 들을 고른 순서대로
+- 업로드는 됐는데 3에서 실패하면 스토리지에 주인 없는 파일이 남는다 — 전시 규모라 허용(필요하면 나중에 정리).
+
+### photoUrls 검증 (POST·PATCH /stories)
+- 각 주소는 `{STORAGE_PUBLIC_BASE_URL}/stories/` 로 시작해야 한다. 아니면 `INVALID_PARAMETER`. (다른 사이트 이미지 주소를 넣지 못하게)
+- 스토리 수정·삭제 때 스토리지의 파일은 지우지 않는다(현재 범위 밖).
+
+## 9. 게임화
+v3 §8(뱃지)과 동일.
 
 ---
 
 ## 10. 미정 (TODO)
 - UGC 신고/검수 엔드포인트(요구사항 Sys_02).
-- 외부 스토리지 종류(S3/R2) 및 프리사인 세부.
 - 타임라인에서 특정 연도로 바로 이동(숫자판으로 연도 고르기) — 필요하면 `GET .../stories?fromYear=` 추가.
 
 ## 변경 이력
 | 날짜 | 버전 | 내용 |
 |---|---|---|
+| 2026-11-10 | v4.6 | §8 이미지 업로드 확정: Ncloud Storage, `POST /uploads/presign`(1~5장, jpeg/png/webp, ≤10MB, 10분), photoUrls 는 저장소 공개 주소만, 에러 `STORAGE_UNAVAILABLE`(503) |
 | 2026-11-08 | v4.5.1 | 지역 검색 호출을 NAVER API HUB 로 이관(주소·헤더 변경, 앱 계약은 그대로) |
 | 2026-11-08 | v4.5 | 영천 장소 검색을 카카오 → **네이버 지역 검색**으로 교체(지도와 같은 네이버 데이터). candidates 는 최대 5곳·페이지 없음(옛 앱이 보내는 `page` 는 받기만 하고 무시) |
 | 2026-11-07 | v4.4 | §4 `GET /places/candidates`(영천 실제 장소 검색), `POST /places/resolve`(찾거나 만들기), 에러 `PLACE_SEARCH_UNAVAILABLE`(503) |

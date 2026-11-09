@@ -25,23 +25,24 @@ backend/Dockerfile     api 이미지
 
 ## 1. Lightsail 서버 만들기
 1. Lightsail 콘솔 > 인스턴스 생성
-   - 리전: **서울 (ap-northeast-2)**
+   - 리전: **서울 (ap-northeast-2)** — 단, AWS Free plan 계정은 Region을 고를 수 없어 **Sydney (ap-southeast-2)** 로 만들었다(2026-11-09). Seoul로 옮기려면 Upgrade plan 후 인스턴스를 새로 만들어야 한다(Region 변경 불가)
    - 플랫폼 Linux/Unix · 블루프린트 **OS 전용 > Ubuntu (LTS 최신)**
    - 플랜: **메모리 2GB 권장** (1GB 도 스왑으로 버틸 수 있지만 빌드가 느림). 가격은 요금 페이지에서 확인
    - 이름: `yeongcheonmap`
 2. 네트워킹 탭 > **고정 IP 생성 → 이 인스턴스에 연결**. (연결 안 된 고정 IP 는 요금이 나간다)
 3. 같은 탭 > IPv4 방화벽: **HTTP(80), HTTPS(443)** 규칙이 있는지 확인, 없으면 추가. (SSH 22 는 기본)
 
-## 2. DNS 연결 (Squarespace Domains)
-1. Squarespace > Domains > `burdocklab.com` > **DNS** (DNS Settings)
-2. 사용자 지정 레코드 추가: **유형 A · 호스트 `map` · 값 = 1단계의 고정 IP**
-3. 확인 (윈도우 PowerShell): `nslookup map.burdocklab.com` → 고정 IP 가 나오면 성공. 몇 분~몇 시간 걸릴 수 있다.
+## 2. DNS 연결 (Cloudflare)
+> `burdocklab.com` 은 Squarespace 에 등록돼 있지만 **Nameserver 가 Cloudflare**(`dara`/`marvin.ns.cloudflare.com`)라서 레코드는 **Cloudflare** 에 넣는다. Squarespace DNS 에 넣으면 적용되지 않는다.
+1. dash.cloudflare.com > `burdocklab.com` > **DNS** > **Records** > **Add record**
+2. **Type A · Name `map` · IPv4 address = 1단계의 Static IP · Proxy status = DNS only(회색 구름)** — Proxied(주황)면 Cloudflare 가 HTTPS 를 가로채 Caddy 인증서와 꼬일 수 있다
+3. 확인 (윈도우 PowerShell): `nslookup map.burdocklab.com 8.8.8.8` → 고정 IP 가 나오면 성공. 몇 분~몇 시간 걸릴 수 있다.
    - **DNS 가 연결되기 전에 5단계를 하면 HTTPS 인증서 발급이 실패한다.** 먼저 확인할 것.
 
 ## 3. 서버 접속 · 코드 받기
-1. Lightsail 인스턴스 화면 > **SSH를 사용하여 연결** (브라우저 터미널)
+1. Lightsail 인스턴스 화면 > **Connect using SSH** (브라우저 터미널)
 2. 코드 받기
-   - 레포가 **공개**면: `git clone https://github.com/13urdock/yeongcheonmap.git`
+   - 레포가 **공개**면 (2026-11-09 현재 공개): `git clone https://github.com/13urdock/yeongcheonmap.git`
    - 레포가 **비공개**면 (읽기 전용 배포 키):
      ```bash
      ssh-keygen -t ed25519 -f ~/.ssh/yeongcheonmap_deploy -N ""
@@ -64,6 +65,7 @@ nano .env                # 채우고 Ctrl+O 저장, Ctrl+X 나가기
 ```
 - `NAVER_SEARCH_*` 는 로컬 `backend/.env` 와 같은 값.
 - `SEED_USER_PASSWORD` = 전시 기기에서 수집가로 로그인할 비밀번호.
+- `STORAGE_ACCESS_KEY`·`STORAGE_SECRET_KEY` = 로컬 `backend/.env` 와 같은 NCP 키(사진 업로드). 나머지 `STORAGE_*` 는 견본 값 그대로. 이미 배포한 서버면 `.env` 에 추가 후 `deploy.sh` 다시 실행.
 
 ## 5. 첫 배포
 ```bash
@@ -102,4 +104,4 @@ curl -s https://map.burdocklab.com/api/v1/events | head -c 300  # {"success":tru
 ## 9. 운영 종료 (전시 후 1~2달)
 1. 마지막 백업: `backup.sh` → 드라이브에 있는지 확인
 2. Lightsail: **인스턴스 삭제 + 고정 IP 해제(삭제)** — 고정 IP 만 남겨 두면 요금이 계속 나간다
-3. Squarespace DNS 에서 `map` 레코드 삭제
+3. Cloudflare DNS 에서 `map` 레코드 삭제

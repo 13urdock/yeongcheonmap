@@ -4,6 +4,7 @@ import { AppException } from '../../common/errors/app.exception';
 import { resolveMemoryDate } from '../../common/memory-date/memory-date.resolver';
 import { EventService } from '../event/event.service';
 import { PlaceService } from '../place/place.service';
+import { PhotoUrlPolicy } from '../upload/photo-url.policy';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { StoryResponse, toStoryResponse } from './story.mapper';
 import { StoryRepository } from './story.repository';
@@ -11,13 +12,15 @@ import { StoryRepository } from './story.repository';
 // 스토리 작성 유스케이스. 규칙:
 // 1) placeId 또는 eventId 중 최소 하나 (둘 다 가능)
 // 2) content 또는 photoUrls(1개 이상) 중 최소 하나 — 사진만 / 글만 가능
-// 3) memoryDate 는 resolver 가 가능한 날짜인지 검증하고 정렬용 값까지 계산
+// 3) photoUrls 는 우리 저장소 공개 주소만 (API 명세 §8)
+// 4) memoryDate 는 resolver 가 가능한 날짜인지 검증하고 정렬용 값까지 계산
 @Injectable()
 export class StoryCreateService {
   constructor(
     private readonly storyRepository: StoryRepository,
     private readonly placeService: PlaceService,
     private readonly eventService: EventService,
+    private readonly photoUrlPolicy: PhotoUrlPolicy,
   ) {}
 
   async create(dto: CreateStoryDto, userId: string): Promise<StoryResponse> {
@@ -25,6 +28,7 @@ export class StoryCreateService {
     const content = this.normalizeText(dto.content);
     const photoUrls = dto.photoUrls ?? [];
     this.assertHasContent(content, photoUrls);
+    this.photoUrlPolicy.assertOwnPhotoUrls(photoUrls);
 
     const memory = resolveMemoryDate(dto.memoryDate);
     if (dto.placeId) await this.placeService.getPlaceOrThrow(dto.placeId);
