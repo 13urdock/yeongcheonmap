@@ -3,7 +3,8 @@
 #   - 기동할 때: prisma migrate deploy → node dist/main
 #   - 필요할 때: 같은 이미지로 seed 실행 (docker compose exec api npx prisma db seed)
 # 전시 규모라 이미지 크기보다 "한 이미지로 다 된다"는 단순함을 택했다.
-FROM node:22-bookworm-slim
+# Node 버전은 backend/.nvmrc 와 같게 고정 (로컬 PC·CI·서버 동일). 올릴 땐 .nvmrc 와 여기 두 곳을 같이 (CI 는 .nvmrc 를 읽음)
+FROM node:22.14.0-bookworm-slim
 
 # Prisma CLI 가 쓰는 openssl
 RUN apt-get update \

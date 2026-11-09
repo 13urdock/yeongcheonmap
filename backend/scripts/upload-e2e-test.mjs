@@ -1,9 +1,10 @@
 // 사진 업로드 끝까지 확인 (POST /uploads/presign → 저장소 PUT → 공개 주소 GET)
 // 실행 (backend 폴더, 서버를 다른 창에서 npm run start:dev 로 띄운 뒤):
-//   node --env-file=.env scripts/upload-e2e-test.mjs
+//   node scripts/upload-e2e-test.mjs
 // 배포 서버로: API_URL=https://map.burdocklab.com/api/v1 을 앞에 붙이거나 .env 에 넣는다
 // 로그인: 시드 수집가(seed@yeongcheonmap.local + SEED_USER_PASSWORD). 다른 계정은 TEST_EMAIL / TEST_PASSWORD.
 // 올린 시험 사진(1x1 PNG)은 저장소 stories/ 에 남는다 — 콘솔에서 지워도 된다(스토리에는 안 붙음).
+import 'dotenv/config'; // backend/.env 읽기 (node --env-file 이 없는 Node 버전에서도 동작). 이미 설정된 환경변수는 덮어쓰지 않음
 
 const API = (process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 8080}/api/v1`).replace(/\/$/, '');
 const email = process.env.TEST_EMAIL ?? 'seed@yeongcheonmap.local';

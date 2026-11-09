@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: backend/.nvmrc # 로컬·서버(Dockerfile)와 같은 버전
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
@@ -51,9 +51,19 @@ jobs:
       - name: SSH 준비
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          # Windows 복사로 섞인 \r 제거 + 끝 줄바꿈 보장 (없으면 "error in libcrypto")
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          echo "${{ secrets.DEPLOY_HOST_KEY }}" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_HOST_KEY" | tr -d '\r' > ~/.ssh/known_hosts
+          # 키가 온전한지 먼저 확인 — 깨졌으면 여기서 분명하게 멈춘다
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null; then
+            echo "::error::DEPLOY_SSH_KEY 가 올바른 개인키가 아니에요 (복사 중 줄이 깨졌을 가능성). deploy/README.md 10단계로 다시 넣어 주세요."
+            exit 1
+          fi
+          echo "키 지문: $(ssh-keygen -lf ~/.ssh/deploy_key)"
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
       - name: 서버에서 deploy.sh
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \

@@ -115,22 +115,28 @@ curl -s https://map.burdocklab.com/api/v1/events | head -c 300  # {"success":tru
 ## 10. 자동 배포 (GitHub Actions) 설정 — 1회
 워크플로: `.github/workflows/backend.yml`. GitHub 이 서버에 SSH 로 들어와 `deploy.sh` 를 실행하므로, **배포 전용 키**를 하나 만들어 서버에 등록하고 GitHub 에 맡긴다.
 
-1. 서버(Connect using SSH)에서 배포 전용 키 만들기·등록
-   ```bash
-   ssh-keygen -t ed25519 -f ~/gh_actions_deploy -N "" -C "github-actions-deploy"
-   cat ~/gh_actions_deploy.pub >> ~/.ssh/authorized_keys
-   cat ~/gh_actions_deploy          # 개인키 — 아래 DEPLOY_SSH_KEY 에 통째로 붙여넣기 (BEGIN ~ END 줄 포함)
-   ssh-keyscan -t ed25519 localhost 2>/dev/null | sed "s/^localhost/$(curl -s ifconfig.me)/"   # 호스트 키 한 줄 → DEPLOY_HOST_KEY
-   ```
-   - 마지막 줄 출력이 `13.55.192.211 ssh-ed25519 AAAA...` 형태인지 확인. (IP 가 다르게 나오면 맨 앞을 Static IP 로 고쳐서 넣기)
-   - 개인키를 복사해 넣은 뒤 서버에서 지우기: `rm ~/gh_actions_deploy` (공개키는 authorized_keys 에 이미 들어감)
+1. 배포 전용 키를 **윈도우 PC** 에서 만든다 (브라우저 SSH 창에서 긴 개인키를 복사하면 줄이 깨져 `error in libcrypto` 가 난다)
+   - PowerShell:
+     ```powershell
+     ssh-keygen -t ed25519 -f $HOME\gh_actions_deploy -C github-actions-deploy   # 암호 묻는 두 번은 그냥 Enter
+     Get-Content $HOME\gh_actions_deploy.pub | Set-Clipboard                       # 공개키(한 줄) 복사
+     ```
+   - 서버(Connect using SSH)에 붙여넣어 등록 — 예전에 만든 배포 키 줄은 지우고 새로 넣는다:
+     ```bash
+     sed -i '/github-actions-deploy/d' ~/.ssh/authorized_keys
+     echo '여기에 붙여넣기' >> ~/.ssh/authorized_keys
+     ssh-keyscan -t eld25519 localhost 2>/dev/null | sed "s/^localhost/$(curl -s ifconfig.me)/"   # 호스트 키 한 줄 → DEPLOY_HOST_KEY
+     ```
+     마지막 출력이 `13.55.192.211 ssh-ed25519 AAAA...` 형태인지 확인 (IP 가 다르면 맨 앞을 Static IP 로)
+   - 개인키는 PC 에서 클립보드로: `Get-Content $HOME\gh_actions_deploy -Raw | Set-Clipboard` → 3번 `DEPLOY_SSH_KEY` 에 붙여넣기 (`-----BEGIN` ~ `-----END ...-----` 전부)
+   - 다 넣었으면 PC 의 키 파일 두 개는 지워도 된다 (다시 필요하면 새로 만들면 됨)
 2. GitHub 레포 > **Settings** > **Environments** > **New environment** → 이름 `production`
 3. 같은 `production` 환경 > **Environment secrets** > **Add environment secret** 4개
    | Name | Value |
    |---|---|
    | `DEPLOY_HOST` | `13.55.192.211` |
    | `DEPLOY_USER` | `ubuntu` |
-   | `DEPLOY_SSH_KEY` | 1번의 개인키 전체 |
+   | `DEPLOY_SSH_KEY` | 1번의 개인키 전체 (PC 에서 Set-Clipboard 로 복사한 것) |
    | `DEPLOY_HOST_KEY` | 1번 마지막 줄 |
 4. 워크플로 파일을 커밋·push → **Actions** 탭에서 `test` → `deploy` 가 초록색이면 완료.
 

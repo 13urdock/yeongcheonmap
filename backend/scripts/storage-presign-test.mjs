@@ -1,6 +1,7 @@
 // Ncloud Storage 프리사인 업로드 시험 (upload 모듈 만들기 전 1회 확인용)
-// 실행 (backend 폴더에서): node --env-file=.env scripts/storage-presign-test.mjs
+// 실행 (backend 폴더에서): node scripts/storage-presign-test.mjs
 // 확인하는 것: ① 서버 키로 프리사인 PUT 주소 만들기 ② 그 주소로 업로드 ③ 공개 주소로 익명 읽기 ④ 시험 파일 삭제
+import 'dotenv/config'; // backend/.env 읽기 (node --env-file 이 없는 Node 버전에서도 동작). 이미 설정된 환경변수는 덮어쓰지 않음
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
