@@ -8,6 +8,6 @@ import { UploadService } from './upload.service';
 @Module({
   controllers: [UploadController],
   providers: [UploadService, StorageSettingsProvider, StoragePresigner, PhotoUrlPolicy],
-  exports: [PhotoUrlPolicy],
+  exports: [PhotoUrlPolicy, UploadService],
 })
 export class UploadModule {}

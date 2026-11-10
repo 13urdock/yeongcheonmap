@@ -30,7 +30,8 @@ class StoryTextFields extends StatelessWidget {
         ],
         const Text('기억', style: RetroTextStyles.sectionLabel),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
+          initialValue: write.content, // 수정 모드에서 원래 글로 시작
           minLines: 5,
           maxLines: 12,
           maxLength: 5000,

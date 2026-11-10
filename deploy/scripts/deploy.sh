@@ -17,6 +17,9 @@ git -C "$REPO_DIR" pull --ff-only
 echo "[2/3] 빌드 + 재기동"
 cd "$DEPLOY_DIR"
 docker compose up -d --build
+# Caddyfile 은 파일 하나를 물려 쓰므로 git pull 로 바뀌면 컨테이너를 새로 만들어야 새 파일을 본다(몇 초 끊김).
+# web/ 은 폴더째 물려 있어 바로 반영된다.
+docker compose up -d --force-recreate --no-deps caddy
 docker image prune -f > /dev/null
 
 echo "[3/3] 상태"

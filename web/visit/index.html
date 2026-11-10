@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F3EBDD">
+  <title>영천 기억 지도 · 기억 남기기</title>
+  <link rel="stylesheet" href="./css/visit.css">
+</head>
+<body>
+  <header class="masthead">
+    <p class="label">YEONGCHEON MEMORY MAP</p>
+    <h1>영천 기억 지도</h1>
+    <p class="hint">영천의 한 자리에 얽힌 당신의 기억을 남겨 주세요.</p>
+  </header>
+
+  <p id="no-code" class="notice" hidden>전시장에 있는 QR 코드를 찍어서 들어와 주세요. 둘러보기만 할 수 있어요.</p>
+  <p id="closed" class="notice" hidden>지금은 기억을 받고 있지 않아요.</p>
+
+  <main id="form">
+    <section class="card">
+      <p class="label">01 · 어디의 기억인가요?</p>
+      <div id="map" class="map" role="application" aria-label="영천 지도"></div>
+      <p class="hint legend"><span class="pin pin-place"></span> 기억이 쌓인 장소 <span class="pin pin-event"></span> 축제</p>
+      <input id="search" type="search" class="field" placeholder="장소·축제 이름으로 찾기 (예: 영천시장)" autocomplete="off">
+      <div id="results" class="results"></div>
+      <div id="target" class="target" hidden></div>
+    </section>
+
+    <section class="card">
+      <p class="label">02 · 사진 <span id="photo-count" class="hint"></span></p>
+      <div class="photos">
+        <div id="photo-list" class="photo-list"></div>
+        <label id="photo-add" class="photo-add">
+          <input id="photo-input" type="file" accept="image/*" multiple hidden>
+          <span>＋ 사진 고르기</span>
+        </label>
+      </div>
+      <p id="photo-busy" class="hint" hidden>사진을 준비하는 중…</p>
+    </section>
+
+    <section class="card">
+      <p class="label">03 · 언제의 기억인가요?</p>
+      <p class="hint">모르는 자리는 X 로 두세요. 칸을 누르면 숫자를 고를 수 있어요.</p>
+      <div id="date-board" class="date-board"></div>
+      <p id="date-warning" class="warning" hidden>이 조합으로는 가능한 날짜가 없어요. (예: 2월 30일, 미래의 날짜)</p>
+    </section>
+
+    <section id="name-then-section" class="card">
+      <p class="label">04 · 그때 이 자리의 이름 <span class="hint">(선택)</span></p>
+      <input id="name-then" class="field" maxlength="150" placeholder="예: 중앙분식">
+    </section>
+
+    <section class="card">
+      <p class="label">05 · 그때의 추억</p>
+      <textarea id="content" class="field" rows="6" maxlength="5000" placeholder="그때의 추억을 적어주세요."></textarea>
+      <p class="hint">사진만, 또는 글만 남겨도 괜찮아요.</p>
+    </section>
+
+    <div class="submit-bar">
+      <button id="submit" type="button" class="submit" disabled>이 기억을 보관하기</button>
+    </div>
+  </main>
+
+  <section id="done" class="done" hidden>
+    <p class="stamp big">보관 완료</p>
+    <h2><span id="done-place"></span>의 기억을 보관했어요.</h2>
+    <p class="hint">전시장의 지도 앱에서 바로 볼 수 있어요.</p>
+    <button id="again" type="button" class="submit">다른 기억 남기기</button>
+  </section>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

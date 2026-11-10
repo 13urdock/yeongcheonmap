@@ -8,6 +8,7 @@ import 'package:yeongcheon_map/data/models/story_model.dart';
 import 'package:yeongcheon_map/data/models/timeline_anchor.dart';
 import 'package:yeongcheon_map/data/repositories/place_repository.dart';
 import 'package:yeongcheon_map/data/repositories/story_repository.dart';
+import 'package:yeongcheon_map/data/repositories/upload_repository.dart';
 import 'package:yeongcheon_map/providers/story_write_provider.dart';
 
 // 지도 상표·영천 장소 검색으로 고른 "아직 등록 안 된 장소": 보관할 때 확정(resolve) → 그 placeId 로 기록
@@ -39,6 +40,12 @@ class _FakeStoryRepository implements StoryRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+// 이 파일은 사진 없이 보관하므로 업로드는 불리지 않는다
+class _NoUploadRepository implements UploadRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw StateError('사진이 없으면 업로드하지 않아야 한다');
+}
+
 void main() {
   const tapped = PlaceCandidateModel(name: '중앙카페', latitude: 35.97, longitude: 128.93);
   const failure = ServerFailure(code: 'INTERNAL_ERROR', message: '잠시 후 다시');
@@ -49,6 +56,7 @@ void main() {
   StoryWriteProvider build() => StoryWriteProvider(
         storyRepository: stories,
         placeRepository: places,
+        uploadRepository: _NoUploadRepository(),
         initialTarget: AnchorTarget.newPlace(tapped),
         clock: () => DateTime(2026, 11, 7),
       )..setContent('방학식 날');

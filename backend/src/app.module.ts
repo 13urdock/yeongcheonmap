@@ -11,10 +11,11 @@ import { EventModule } from './modules/event/event.module';
 import { PlaceModule } from './modules/place/place.module';
 import { StoryModule } from './modules/story/story.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { VisitorModule } from './modules/visitor/visitor.module';
 
 // 루트 모듈: 인프라(config/prisma/jwt) + 전역 파이프·필터·인터셉터 + 리소스 모듈 등록
 @Module({
-  imports: [AppConfigModule, PrismaModule, JwtAuthModule, AuthModule, PlaceModule, EventModule, StoryModule, UploadModule],
+  imports: [AppConfigModule, PrismaModule, JwtAuthModule, AuthModule, PlaceModule, EventModule, StoryModule, UploadModule, VisitorModule],
   providers: [
     {
       provide: APP_PIPE,

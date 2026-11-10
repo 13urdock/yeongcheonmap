@@ -4,8 +4,9 @@ import '../models/paged_result_model.dart';
 import '../models/story_model.dart';
 import '../models/timeline_anchor.dart';
 import '../models/timeline_order.dart';
+import '../models/update_story_request.dart';
 
-// 스토리 리소스 원격 호출 (HTTP + 파싱만): 장소·축제 타임라인, 작성
+// 스토리 리소스 원격 호출 (HTTP + 파싱만): 장소·축제 타임라인, 작성, 수정, 삭제
 class StoryRemoteDataSource {
   StoryRemoteDataSource(this._client);
 
@@ -30,5 +31,16 @@ class StoryRemoteDataSource {
   Future<StoryModel> create(CreateStoryRequest request) async {
     final data = await _client.post('/stories', body: request.toJson());
     return StoryModel.fromJson(data);
+  }
+
+  /// PATCH /stories/{storyId} (본인만)
+  Future<StoryModel> update(String storyId, UpdateStoryRequest request) async {
+    final data = await _client.patch('/stories/$storyId', body: request.toJson());
+    return StoryModel.fromJson(data);
+  }
+
+  /// DELETE /stories/{storyId} (본인만)
+  Future<void> delete(String storyId) async {
+    await _client.delete('/stories/$storyId');
   }
 }

@@ -6,8 +6,9 @@ import '../models/paged_result_model.dart';
 import '../models/story_model.dart';
 import '../models/timeline_anchor.dart';
 import '../models/timeline_order.dart';
+import '../models/update_story_request.dart';
 
-// 스토리 데이터 제공: 타임라인 페이지, 작성. 예외를 Failure 로 바꿔 Result 로 돌려준다.
+// 스토리 데이터 제공: 타임라인 페이지, 작성, 수정, 삭제. 예외를 Failure 로 바꿔 Result 로 돌려준다.
 class StoryRepository {
   StoryRepository(this._remote);
 
@@ -25,5 +26,13 @@ class StoryRepository {
 
   Future<Result<StoryModel>> create(CreateStoryRequest request) {
     return runGuarded(() => _remote.create(request));
+  }
+
+  Future<Result<StoryModel>> update(String storyId, UpdateStoryRequest request) {
+    return runGuarded(() => _remote.update(storyId, request));
+  }
+
+  Future<Result<void>> delete(String storyId) {
+    return runGuarded(() => _remote.delete(storyId));
   }
 }

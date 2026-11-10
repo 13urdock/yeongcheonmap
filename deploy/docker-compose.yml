@@ -1,5 +1,5 @@
 # 영천 기억 지도 — 서버 한 대 구성 (Lightsail 서울)
-#   caddy : 80/443 을 받아 HTTPS 처리 → api 로 넘김
+#   caddy : 80/443 을 받아 HTTPS 처리 → /api 는 api 로, 나머지는 web/ 정적 파일(관람객 웹 /visit)
 #   api   : NestJS (기동 때 prisma migrate deploy)
 #   db    : PostgreSQL (바깥에 포트를 열지 않음, 데이터는 pgdata 볼륨)
 # 값은 같은 폴더의 .env 에서 읽는다 (.env.example 참고)
@@ -43,6 +43,8 @@ services:
       STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-}
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-}
+      VISITOR_WRITE_CODE: ${VISITOR_WRITE_CODE:-}
+      NAVER_MAP_CLIENT_ID: ${NAVER_MAP_CLIENT_ID:-}
     expose:
       - "8080"
 
@@ -58,6 +60,7 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:?deploy/.env 에 APP_DOMAIN 을 넣어 주세요}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../web:/srv/web:ro
       - caddy_data:/data
       - caddy_config:/config
 

@@ -17,6 +17,11 @@ class ServerFailure extends Failure {
   final String code;
 }
 
+/// 고른 사진을 올릴 수 없음 (형식·크기·읽기 실패) — 서버에 보내기 전에 걸러진다
+class PhotoFailure extends Failure {
+  const PhotoFailure(super.message);
+}
+
 /// 그 밖의 예상 못 한 오류
 class UnknownFailure extends Failure {
   const UnknownFailure([super.message = '알 수 없는 오류가 발생했습니다']);

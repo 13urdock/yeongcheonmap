@@ -44,6 +44,16 @@ class ApiClient {
     return _send(() => _dio.post<dynamic>(path, data: body), retryOnUnauthorized: retryOnUnauthorized);
   }
 
+  /// PATCH 요청 → envelope 의 data(Map)를 반환
+  Future<Map<String, dynamic>> patch(String path, {Object? body}) async {
+    return _send(() => _dio.patch<dynamic>(path, data: body));
+  }
+
+  /// DELETE 요청 → envelope 의 data(Map)를 반환
+  Future<Map<String, dynamic>> delete(String path) async {
+    return _send(() => _dio.delete<dynamic>(path));
+  }
+
   Future<Map<String, dynamic>> _send(
     Future<Response<dynamic>> Function() request, {
     bool retryOnUnauthorized = true,

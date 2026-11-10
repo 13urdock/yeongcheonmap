@@ -6,6 +6,7 @@ import { EventService } from '../event/event.service';
 import { PlaceService } from '../place/place.service';
 import { PhotoUrlPolicy } from '../upload/photo-url.policy';
 import { CreateStoryDto } from './dto/create-story.dto';
+import { normalizeStoryText } from './story-text';
 import { StoryResponse, toStoryResponse } from './story.mapper';
 import { StoryRepository } from './story.repository';
 
@@ -25,7 +26,7 @@ export class StoryCreateService {
 
   async create(dto: CreateStoryDto, userId: string): Promise<StoryResponse> {
     this.assertAnchor(dto);
-    const content = this.normalizeText(dto.content);
+    const content = normalizeStoryText(dto.content);
     const photoUrls = dto.photoUrls ?? [];
     this.assertHasContent(content, photoUrls);
     this.photoUrlPolicy.assertOwnPhotoUrls(photoUrls);
@@ -39,7 +40,7 @@ export class StoryCreateService {
       userId,
       placeId: dto.placeId,
       eventId: dto.eventId,
-      placeNameThen: this.normalizeText(dto.placeNameThen),
+      placeNameThen: normalizeStoryText(dto.placeNameThen),
       content,
       photoUrls,
     });
@@ -56,11 +57,5 @@ export class StoryCreateService {
     if (!content && photoUrls.length === 0) {
       throw new AppException(AppErrorCode.INVALID_PARAMETER, '글 또는 사진 중 하나는 필요합니다');
     }
-  }
-
-  // 공백뿐인 글은 없는 것으로 본다
-  private normalizeText(text: string | undefined): string | undefined {
-    const trimmed = text?.trim();
-    return trimmed ? trimmed : undefined;
   }
 }

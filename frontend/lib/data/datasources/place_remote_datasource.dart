@@ -1,8 +1,8 @@
 import '../../core/network/api_client.dart';
 import '../models/map_bounds_model.dart';
 import '../models/paged_result_model.dart';
-import '../models/place_detail_model.dart';
 import '../models/place_candidate_model.dart';
+import '../models/place_detail_model.dart';
 import '../models/place_pin_model.dart';
 import '../models/resolve_place_request.dart';
 import '../models/resolved_place_model.dart';

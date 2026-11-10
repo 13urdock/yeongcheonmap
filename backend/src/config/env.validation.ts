@@ -63,6 +63,19 @@ export class EnvVariables {
   @IsOptional()
   @IsString()
   STORAGE_SECRET_KEY?: string;
+
+  // (선택) 관람객 웹(/visit) 쓰기 코드. 전시장 QR 주소(?c=코드)에 넣는다. API 명세 §11.
+  // 비어 있으면 관람객 쓰기(/visitor/*) 가 FORBIDDEN 으로 꺼진다. 영문·숫자 8자 이상 권장.
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  VISITOR_WRITE_CODE?: string;
+
+  // (선택) 관람객 웹 지도용 NCP Maps Client ID (앱의 NAVER_MAP_CLIENT_ID 와 같은 값).
+  // NCP 콘솔 Maps Application 의 Web 서비스 URL 에 https://map.burdocklab.com 을 등록해야 지도가 뜬다.
+  @IsOptional()
+  @IsString()
+  NAVER_MAP_CLIENT_ID?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvVariables {

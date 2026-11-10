@@ -20,6 +20,7 @@ class StoryAnchorSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final target = context.select<StoryWriteProvider, AnchorTarget?>((p) => p.target);
+    final isEditing = context.select<StoryWriteProvider, bool>((p) => p.isEditing);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -41,11 +42,13 @@ class StoryAnchorSection extends StatelessWidget {
                     ? const Text('장소나 축제를 골라 주세요', style: RetroTextStyles.caption)
                     : _TargetName(target: target),
               ),
-              TextButton.icon(
-                onPressed: () => _pick(context),
-                icon: const Icon(Icons.search, size: 18),
-                label: Text(target == null ? '고르기' : '바꾸기'),
-              ),
+              // 수정할 땐 기록할 곳을 바꿀 수 없다
+              if (!isEditing)
+                TextButton.icon(
+                  onPressed: () => _pick(context),
+                  icon: const Icon(Icons.search, size: 18),
+                  label: Text(target == null ? '고르기' : '바꾸기'),
+                ),
             ],
           ),
         ),

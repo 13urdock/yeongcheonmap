@@ -1,4 +1,4 @@
-// 개발용 시드 (ERD v5): 시드 사용자(수집가). SEED_SAMPLE_DATA=true 일 때만 가상 샘플(장소 3·축제 2·기록 10)도.
+// 시드 (ERD v5): 시드 사용자(수집가) + 실제 영천 축제 2개(real-events.ts). SEED_SAMPLE_DATA=true 일 때만 가상 샘플(장소 3·축제 2·기록 10)도.
 // 실행: npm run prisma:seed  (고정 ID + upsert 라 여러 번 실행해도 안전)
 // 샘플의 이름·좌표는 모두 가상이다. 실제 장소는 앱에서 지도 상표를 누르거나 '영천의 장소' 검색으로 기록하면 생긴다.
 // 이미 들어간 샘플 지우기: npm run prisma:clear-samples
@@ -7,6 +7,7 @@ import { PrismaClient } from '../src/generated/prisma/client';
 import { createPrismaPgAdapter } from '../src/prisma/prisma-adapter.factory';
 import { resolveMemoryDate } from '../src/common/memory-date/memory-date.resolver';
 import { hashPassword } from '../src/modules/auth/password-hasher';
+import { REAL_EVENTS } from './real-events';
 import { SAMPLE_EVENT_IDS, SAMPLE_PLACE_IDS } from './sample-ids';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -71,6 +72,25 @@ async function seedEvents(): Promise<void> {
   }
 }
 
+// 실제 축제: 축제·주최·회차를 고정 ID 로 upsert (내용을 고쳐 다시 돌리면 그대로 반영)
+async function seedRealEvents(): Promise<void> {
+  for (const { hosts, occurrences, ...event } of REAL_EVENTS) {
+    await prisma.event.upsert({ where: { eventId: event.eventId }, update: event, create: event });
+    for (const h of hosts) {
+      const data = { eventId: event.eventId, hostType: h.hostType, hostName: h.hostName };
+      await prisma.eventHost.upsert({ where: { eventHostId: h.eventHostId }, update: data, create: { ...data, eventHostId: h.eventHostId } });
+    }
+    for (const o of occurrences) {
+      const data = { eventId: event.eventId, year: o.year, startDate: new Date(o.startDate), endDate: new Date(o.endDate) };
+      await prisma.eventOccurrence.upsert({
+        where: { occurrenceId: o.occurrenceId },
+        update: data,
+        create: { ...data, occurrenceId: o.occurrenceId },
+      });
+    }
+  }
+}
+
 // 정렬 확인용으로 일부러 다양한 기억 날짜를 섞는다 (id 끝 2자리 = 작성 순서)
 const STORIES: { id: string; placeId?: string; eventId?: string; memoryDate: string; placeNameThen?: string; content: string }[] = [
   { id: '01', placeId: PLACE.cafe, memoryDate: '1995.07.15', placeNameThen: '중앙분식', content: '방학식 날 친구들이랑 떡볶이' },
@@ -102,12 +122,13 @@ async function seedStories(): Promise<void> {
 
 async function main(): Promise<void> {
   await seedUser();
+  await seedRealEvents();
   if (WITH_SAMPLES) {
     await seedPlaces();
     await seedEvents();
     await seedStories();
   }
-  console.log(WITH_SAMPLES ? 'seed done (가상 샘플 포함)' : 'seed done (수집가 계정만)');
+  console.log(WITH_SAMPLES ? 'seed done (수집가·실제 축제 + 가상 샘플)' : 'seed done (수집가 계정 + 실제 축제 2개)');
 }
 
 main()

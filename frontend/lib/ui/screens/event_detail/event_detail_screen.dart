@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/error/failure.dart';
 import '../../../data/models/anchor_target.dart';
 import '../../../data/models/event_detail_model.dart';
+import '../../../data/models/story_model.dart';
 import '../../../data/models/timeline_anchor.dart';
 import '../../../data/repositories/event_repository.dart';
 import '../../../data/repositories/story_repository.dart';
@@ -51,6 +52,19 @@ class _EventDetailView extends StatelessWidget {
     if (result == true) await timeline.refresh();
   }
 
+  // 본인 기록 더블탭 → 수정 화면 (고치거나 지우면 타임라인 새로고침)
+  Future<void> _edit(BuildContext context, EventDetailModel event, StoryModel story) async {
+    final timeline = context.read<TimelineProvider>();
+    final result = await Navigator.of(context).pushNamed(
+      AppRoutes.storyWrite,
+      arguments: StoryWriteArgs(
+        initialTarget: AnchorTarget(anchor: EventAnchor(event.eventId), name: event.name),
+        editingStory: story,
+      ),
+    );
+    if (result == true) await timeline.refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final event = context.select<EventDetailProvider, EventDetailModel?>((p) => p.event);
@@ -59,7 +73,11 @@ class _EventDetailView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('축제의 기억')),
       body: switch ((event, failure)) {
-        (final EventDetailModel e, _) => TimelineScrollView(header: EventHeader(event: e), currentName: e.name),
+        (final EventDetailModel e, _) => TimelineScrollView(
+            header: EventHeader(event: e),
+            currentName: e.name,
+            onEditStory: (story) => _edit(context, e, story),
+          ),
         (null, final Failure f) => Padding(
             padding: const EdgeInsets.all(16),
             child: FailureNotice(failure: f, onRetry: () => context.read<EventDetailProvider>().load()),

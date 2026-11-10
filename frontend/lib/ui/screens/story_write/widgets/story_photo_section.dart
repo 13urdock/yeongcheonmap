@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/config/constants.dart';
+import '../../../../core/media/photo_source.dart';
 import '../../../../providers/story_write_provider.dart';
 import '../../../theme/retro_colors.dart';
 import '../../../theme/retro_text_styles.dart';
 import '../../../widgets/photo/photo_slider.dart';
 
 // "사진" — 고른 사진을 슬라이드로 보고 빼기 + 사진 추가 버튼 (최대 StoryConstants.maxPhotos 장)
+// 수정 모드에선 이미 올라간 사진(공개 주소)도 같은 목록에 섞여 있다.
 class StoryPhotoSection extends StatelessWidget {
   const StoryPhotoSection({super.key});
 
@@ -32,7 +34,10 @@ class StoryPhotoSection extends StatelessWidget {
         const SizedBox(height: 6),
         if (paths.isNotEmpty) ...[
           PhotoSlider(
-            images: [for (final path in paths) FileImage(File(path))],
+            images: [
+              for (final path in paths)
+                if (isRemotePhoto(path)) NetworkImage(path) as ImageProvider else FileImage(File(path)),
+            ],
             onRemove: write.removePhotoAt,
           ),
           const SizedBox(height: 8),
@@ -40,7 +45,7 @@ class StoryPhotoSection extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: canAdd ? write.pickPhotos : null,
           icon: const Icon(Icons.add_photo_alternate_outlined),
-          label: Text(canAdd ? '사진 추가' : '사진은 ${StoryConstants.maxPhotos}장까지'),
+          label: Text(paths.length < StoryConstants.maxPhotos ? '사진 추가' : '사진은 ${StoryConstants.maxPhotos}장까지'),
           style: OutlinedButton.styleFrom(
             foregroundColor: RetroColors.ink,
             side: const BorderSide(color: RetroColors.ink),

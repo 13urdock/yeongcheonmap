@@ -21,4 +21,11 @@ class StoryConstants {
 
   /// 기록 하나에 붙일 수 있는 사진 수 (API 명세 v4 §7 photoUrls ≤5)
   static const int maxPhotos = 5;
+
+  /// 올리기 전 사진 긴 변 상한(px)과 jpeg 품질 — 전시장 Wi-Fi·저장소 용량을 생각해 줄여서 보낸다 (API 명세 §8)
+  static const double photoMaxSide = 2000;
+  static const int photoQuality = 85;
+
+  /// 사진 한 장 최대 크기 (API 명세 §8 size ≤ 10MB)
+  static const int maxPhotoBytes = 10 * 1024 * 1024;
 }

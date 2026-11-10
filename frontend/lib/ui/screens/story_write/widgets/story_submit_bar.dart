@@ -28,13 +28,19 @@ class StorySubmitBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final canSubmit = context.select<StoryWriteProvider, bool>((p) => p.canSubmit);
     final isSubmitting = context.select<StoryWriteProvider, bool>((p) => p.isSubmitting);
+    final isUploadingPhotos = context.select<StoryWriteProvider, bool>((p) => p.isUploadingPhotos);
+    final isEditing = context.select<StoryWriteProvider, bool>((p) => p.isEditing);
     final needsLogin = context.select<AuthProvider, bool>((p) => !p.isLoggedIn);
     final blockedDevice = Env.exhibitionMode && needsLogin;
-    final label = isSubmitting
+    final label = isUploadingPhotos
+        ? '사진 올리는 중…'
+        : isSubmitting
         ? '보관하는 중…'
         : blockedDevice
             ? '이 기기에서는 보관할 수 없어요 (운영진 문의)'
-            : (needsLogin ? '로그인하고 보관하기' : '이 기억을 보관하기');
+            : needsLogin
+                ? '로그인하고 보관하기'
+                : (isEditing ? '고친 기억 보관하기' : '이 기억을 보관하기');
 
     return SafeArea(
       child: Padding(

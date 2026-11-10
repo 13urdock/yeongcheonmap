@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/error/failure.dart';
 import '../../../data/models/anchor_target.dart';
 import '../../../data/models/place_detail_model.dart';
+import '../../../data/models/story_model.dart';
 import '../../../data/models/timeline_anchor.dart';
 import '../../../data/repositories/place_repository.dart';
 import '../../../data/repositories/story_repository.dart';
@@ -51,6 +52,19 @@ class _PlaceDetailView extends StatelessWidget {
     if (result == true) await timeline.refresh();
   }
 
+  // 본인 기록 더블탭 → 수정 화면 (고치거나 지우면 타임라인 새로고침)
+  Future<void> _edit(BuildContext context, PlaceDetailModel place, StoryModel story) async {
+    final timeline = context.read<TimelineProvider>();
+    final result = await Navigator.of(context).pushNamed(
+      AppRoutes.storyWrite,
+      arguments: StoryWriteArgs(
+        initialTarget: AnchorTarget(anchor: PlaceAnchor(place.placeId), name: place.name),
+        editingStory: story,
+      ),
+    );
+    if (result == true) await timeline.refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final place = context.select<PlaceDetailProvider, PlaceDetailModel?>((p) => p.place);
@@ -59,7 +73,11 @@ class _PlaceDetailView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('기억의 자리')),
       body: switch ((place, failure)) {
-        (final PlaceDetailModel p, _) => TimelineScrollView(header: PlaceHeader(place: p), currentName: p.name),
+        (final PlaceDetailModel p, _) => TimelineScrollView(
+            header: PlaceHeader(place: p),
+            currentName: p.name,
+            onEditStory: (story) => _edit(context, p, story),
+          ),
         (null, final Failure f) => Padding(
             padding: const EdgeInsets.all(16),
             child: FailureNotice(failure: f, onRetry: () => context.read<PlaceDetailProvider>().load()),

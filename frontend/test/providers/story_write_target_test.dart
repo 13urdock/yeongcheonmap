@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yeongcheon_map/core/network/api_client.dart';
+import 'package:yeongcheon_map/core/network/storage_upload_client.dart';
 import 'package:yeongcheon_map/data/datasources/place_remote_datasource.dart';
 import 'package:yeongcheon_map/data/datasources/story_remote_datasource.dart';
+import 'package:yeongcheon_map/data/datasources/upload_remote_datasource.dart';
 import 'package:yeongcheon_map/data/models/anchor_target.dart';
 import 'package:yeongcheon_map/data/models/timeline_anchor.dart';
 import 'package:yeongcheon_map/data/repositories/place_repository.dart';
 import 'package:yeongcheon_map/data/repositories/story_repository.dart';
+import 'package:yeongcheon_map/data/repositories/upload_repository.dart';
 import 'package:yeongcheon_map/providers/story_write_provider.dart';
 
 // 기록할 곳(장소/축제) 규칙: 고르기 전엔 보관 불가, "그때 이름"은 장소일 때만
@@ -14,6 +17,7 @@ void main() {
   StoryWriteProvider build({AnchorTarget? initialTarget}) => StoryWriteProvider(
         storyRepository: StoryRepository(StoryRemoteDataSource(client)),
         placeRepository: PlaceRepository(PlaceRemoteDataSource(client)),
+        uploadRepository: UploadRepository(UploadRemoteDataSource(client, StorageUploadClient())),
         initialTarget: initialTarget,
         clock: () => DateTime(2026, 10, 20),
       );

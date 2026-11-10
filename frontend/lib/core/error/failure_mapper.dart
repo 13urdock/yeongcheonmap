@@ -1,3 +1,4 @@
+import '../media/photo_file_exception.dart';
 import '../network/api_exception.dart';
 import 'failure.dart';
 import 'result.dart';
@@ -9,6 +10,9 @@ Failure failureFrom(Object error) {
   }
   if (error is NetworkException) {
     return NetworkFailure(error.message);
+  }
+  if (error is PhotoFileException) {
+    return PhotoFailure(error.message);
   }
   return const UnknownFailure();
 }

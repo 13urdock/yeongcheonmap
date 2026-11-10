@@ -9,6 +9,6 @@ import { PlaceService } from './place.service';
 @Module({
   controllers: [PlaceController],
   providers: [PlaceService, PlaceCandidateService, PlaceResolveService, PlaceRepository, NaverLocalClient],
-  exports: [PlaceService],
+  exports: [PlaceService, PlaceResolveService],
 })
 export class PlaceModule {}

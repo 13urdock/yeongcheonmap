@@ -3,15 +3,18 @@ import 'package:provider/provider.dart';
 
 import 'core/config/env.dart';
 import 'core/network/api_client.dart';
+import 'core/network/storage_upload_client.dart';
 import 'data/datasources/auth_local_datasource.dart';
 import 'data/datasources/auth_remote_datasource.dart';
 import 'data/datasources/event_remote_datasource.dart';
 import 'data/datasources/place_remote_datasource.dart';
 import 'data/datasources/story_remote_datasource.dart';
+import 'data/datasources/upload_remote_datasource.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/event_repository.dart';
 import 'data/repositories/place_repository.dart';
 import 'data/repositories/story_repository.dart';
+import 'data/repositories/upload_repository.dart';
 import 'providers/auth_provider.dart';
 import 'providers/map_provider.dart';
 import 'routing/app_router.dart';
@@ -33,6 +36,7 @@ class _YeongcheonMapAppState extends State<YeongcheonMapApp> {
   late final PlaceRepository _placeRepository;
   late final EventRepository _eventRepository;
   late final StoryRepository _storyRepository;
+  late final UploadRepository _uploadRepository;
 
   @override
   void initState() {
@@ -47,6 +51,7 @@ class _YeongcheonMapAppState extends State<YeongcheonMapApp> {
     _placeRepository = PlaceRepository(PlaceRemoteDataSource(apiClient));
     _eventRepository = EventRepository(EventRemoteDataSource(apiClient));
     _storyRepository = StoryRepository(StoryRemoteDataSource(apiClient));
+    _uploadRepository = UploadRepository(UploadRemoteDataSource(apiClient, StorageUploadClient()));
   }
 
   @override
@@ -57,6 +62,7 @@ class _YeongcheonMapAppState extends State<YeongcheonMapApp> {
         Provider.value(value: _placeRepository),
         Provider.value(value: _eventRepository),
         Provider.value(value: _storyRepository),
+        Provider.value(value: _uploadRepository),
         ChangeNotifierProvider(create: (_) => AuthProvider(authRepository: _authRepository)..restore()),
         ChangeNotifierProvider(
           create: (_) => MapProvider(placeRepository: _placeRepository, eventRepository: _eventRepository)..load(),
