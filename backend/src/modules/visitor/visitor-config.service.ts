@@ -16,7 +16,7 @@ export class VisitorConfigService {
   get(): VisitorConfigResponse {
     return {
       naverMapClientId: this.config.get<string>('NAVER_MAP_CLIENT_ID') || null,
-      writable: Boolean(this.config.get<string>('VISITOR_WRITE_CODE')),
+      writable: Boolean(this.config.get<string>('VISITOR_WRITE_CODE')?.trim()),
     };
   }
 }

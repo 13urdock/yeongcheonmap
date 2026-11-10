@@ -18,7 +18,8 @@ export class VisitorCodeGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const expected = this.config.get<string>('VISITOR_WRITE_CODE');
+    // .env 를 윈도우에서 편집하면 \r 이, 복사하다 보면 공백이 붙을 수 있어 앞뒤 공백·줄바꿈은 무시한다
+    const expected = this.config.get<string>('VISITOR_WRITE_CODE')?.trim();
     if (!expected) {
       throw new AppException(AppErrorCode.FORBIDDEN, '지금은 관람객 기록을 받지 않아요');
     }
@@ -34,7 +35,7 @@ export class VisitorCodeGuard implements CanActivate {
 
   private matches(given: string | undefined, expected: string): boolean {
     if (!given) return false;
-    const a = Buffer.from(given);
+    const a = Buffer.from(given.trim());
     const b = Buffer.from(expected);
     return a.length === b.length && timingSafeEqual(a, b);
   }

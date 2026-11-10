@@ -27,6 +27,10 @@ describe('VisitorCodeGuard', () => {
     expect(() => guard.canActivate(contextFor('secret-cod').ctx)).toThrow(code(AppErrorCode.UNAUTHORIZED));
   });
 
+  it('서버 값 앞뒤의 줄바꿈·공백은 무시한다 (.env 를 윈도우에서 편집한 경우)', () => {
+    expect(guardWith('secret-code\r\n').canActivate(contextFor(' secret-code').ctx)).toBe(true);
+  });
+
   it('맞으면 작성자를 수집가로 채운다', () => {
     const { req, ctx } = contextFor('secret-code');
     expect(guardWith('secret-code').canActivate(ctx)).toBe(true);
