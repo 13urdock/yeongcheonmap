@@ -1,4 +1,4 @@
-// 시드 (ERD v5): 시드 사용자(수집가) + 실제 영천 축제 2개(real-events.ts). SEED_SAMPLE_DATA=true 일 때만 가상 샘플(장소 3·축제 2·기록 10)도.
+// 시드 (ERD v6): 운영 계정 2개(수집가·운영진, 권한 같음)와 그 기록자 + 실제 영천 축제 2개(real-events.ts). SEED_SAMPLE_DATA=true 일 때만 가상 샘플(장소 3·축제 2·기록 10)도.
 // 실행: npm run prisma:seed  (고정 ID + upsert 라 여러 번 실행해도 안전)
 // 샘플의 이름·좌표는 모두 가상이다. 실제 장소는 앱에서 지도 상표를 누르거나 '영천의 장소' 검색으로 기록하면 생긴다.
 // 이미 들어간 샘플 지우기: npm run prisma:clear-samples
@@ -7,6 +7,7 @@ import { PrismaClient } from '../src/generated/prisma/client';
 import { createPrismaPgAdapter } from '../src/prisma/prisma-adapter.factory';
 import { resolveMemoryDate } from '../src/common/memory-date/memory-date.resolver';
 import { hashPassword } from '../src/modules/auth/password-hasher';
+import { COLLECTOR_CONTRIBUTOR_ID, COLLECTOR_USER_ID, OPERATOR_CONTRIBUTOR_ID, OPERATOR_USER_ID } from './account-ids';
 import { REAL_EVENTS } from './real-events';
 import { SAMPLE_EVENT_IDS, SAMPLE_PLACE_IDS } from './sample-ids';
 
@@ -14,31 +15,59 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL 이 필요합니다 (.env)');
 const prisma = new PrismaClient({ adapter: createPrismaPgAdapter(databaseUrl) });
 
-const SEED_USER_ID = 'b0000000-0000-4000-8000-000000000001';
+const SEED_USER_ID = COLLECTOR_USER_ID;
 const PLACE = { cafe: SAMPLE_PLACE_IDS[0], station: SAMPLE_PLACE_IDS[1], market: SAMPLE_PLACE_IDS[2] };
 const EVENT = { festival: SAMPLE_EVENT_IDS[0], starlight: SAMPLE_EVENT_IDS[1] };
 const WITH_SAMPLES = process.env.SEED_SAMPLE_DATA === 'true';
 
-// 시드 사용자(수집가) 로그인 비밀번호. .env 의 SEED_USER_PASSWORD 가 있으면 그걸로 로그인할 수 있다.
+// 운영 계정 로그인 비밀번호. .env 의 값이 있으면 그걸로 로그인할 수 있다.
 // 비어 있으면 로그인 불가 값으로 둔다(운영 DB 에 아는 비밀번호가 남지 않게).
-async function seedPasswordHash(): Promise<string> {
-  const password = process.env.SEED_USER_PASSWORD;
+async function passwordHashFrom(password: string | undefined): Promise<string> {
   return password ? hashPassword(password) : 'login-disabled';
 }
 
-async function seedUser(): Promise<void> {
-  const passwordHash = await seedPasswordHash();
-  await prisma.user.upsert({
-    where: { userId: SEED_USER_ID },
-    update: { name: '수집가', passwordHash },
-    create: {
-      userId: SEED_USER_ID,
-      email: 'seed@yeongcheonmap.local',
-      passwordHash,
-      name: '수집가',
-      profile: { create: { bio: '초기 데이터 등록용 계정' } },
-    },
-  });
+// 수집가·운영진: 이름만 다르고 권한(admin)은 같다. 각 계정의 기록자(닉네임 = 계정 이름)도 같이 만든다.
+const ACCOUNTS = [
+  {
+    userId: COLLECTOR_USER_ID,
+    contributorId: COLLECTOR_CONTRIBUTOR_ID,
+    email: 'seed@yeongcheonmap.local',
+    name: '수집가',
+    bio: '초기 데이터 등록·관람객 기록 보관용 계정',
+    passwordEnv: 'SEED_USER_PASSWORD',
+  },
+  {
+    userId: OPERATOR_USER_ID,
+    contributorId: OPERATOR_CONTRIBUTOR_ID,
+    email: 'staff@yeongcheonmap.local',
+    name: '운영진',
+    bio: '운영진 관리용 계정',
+    passwordEnv: 'OPERATOR_USER_PASSWORD',
+  },
+];
+
+async function seedAccounts(): Promise<void> {
+  for (const a of ACCOUNTS) {
+    const passwordHash = await passwordHashFrom(process.env[a.passwordEnv]);
+    await prisma.user.upsert({
+      where: { userId: a.userId },
+      update: { name: a.name, passwordHash, role: 'admin' },
+      create: {
+        userId: a.userId,
+        email: a.email,
+        passwordHash,
+        name: a.name,
+        role: 'admin',
+        profile: { create: { bio: a.bio } },
+      },
+    });
+    // migration 이 계정마다 기록자를 이미 만들었을 수 있어 userId 로 찾는다
+    await prisma.contributor.upsert({
+      where: { userId: a.userId },
+      update: { nickname: a.name },
+      create: { contributorId: a.contributorId, nickname: a.name, userId: a.userId },
+    });
+  }
 }
 
 async function seedPlaces(): Promise<void> {
@@ -115,20 +144,21 @@ async function seedStories(): Promise<void> {
       placeNameThen: s.placeNameThen,
       content: s.content,
       userId: SEED_USER_ID,
+      contributorId: COLLECTOR_CONTRIBUTOR_ID,
     };
     await prisma.story.upsert({ where: { storyId }, update: data, create: { storyId, ...data } });
   }
 }
 
 async function main(): Promise<void> {
-  await seedUser();
+  await seedAccounts();
   await seedRealEvents();
   if (WITH_SAMPLES) {
     await seedPlaces();
     await seedEvents();
     await seedStories();
   }
-  console.log(WITH_SAMPLES ? 'seed done (수집가·실제 축제 + 가상 샘플)' : 'seed done (수집가 계정 + 실제 축제 2개)');
+  console.log(WITH_SAMPLES ? 'seed done (운영 계정 2개·실제 축제 + 가상 샘플)' : 'seed done (운영 계정 2개 + 실제 축제 2개)');
 }
 
 main()

@@ -7,6 +7,7 @@ import { StoryCreateService } from './story-create.service';
 import { StoryDeleteService } from './story-delete.service';
 import { StoryQueryService } from './story-query.service';
 import { StoryUpdateService } from './story-update.service';
+import { StorySource } from './story-source';
 
 // /stories 라우팅만
 @Controller('stories')
@@ -29,10 +30,10 @@ export class StoryController {
   @HttpCode(201)
   @UseGuards(JwtAuthGuard)
   create(@Body() dto: CreateStoryDto, @CurrentUser() user: CurrentUserInfo) {
-    return this.storyCreateService.create(dto, user.userId);
+    return this.storyCreateService.create(dto, { userId: user.userId, source: StorySource.APP });
   }
 
-  // PATCH /stories/:storyId (인증, 본인만)
+  // PATCH /stories/:storyId (인증, 본인 또는 운영진)
   @Patch(':storyId')
   @UseGuards(JwtAuthGuard)
   update(
@@ -43,7 +44,7 @@ export class StoryController {
     return this.storyUpdateService.update(storyId, dto, user.userId);
   }
 
-  // DELETE /stories/:storyId (인증, 본인만) → 200 { storyId }
+  // DELETE /stories/:storyId (인증, 본인 또는 운영진) → 휴지통으로, 200 { storyId }
   @Delete(':storyId')
   @UseGuards(JwtAuthGuard)
   async remove(@Param('storyId', ParseUUIDPipe) storyId: string, @CurrentUser() user: CurrentUserInfo) {

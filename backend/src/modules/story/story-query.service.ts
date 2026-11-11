@@ -28,7 +28,7 @@ export class StoryQueryService {
   }
 
   async getStory(storyId: string): Promise<StoryResponse> {
-    const row = await this.storyRepository.findById(storyId);
+    const row = await this.storyRepository.findPublicById(storyId);
     if (!row) {
       throw new AppException(AppErrorCode.STORY_NOT_FOUND, '존재하지 않는 기록입니다');
     }

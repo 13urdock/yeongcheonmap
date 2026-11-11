@@ -71,4 +71,11 @@ export class DateBoard {
     this.digits = Array(8).fill(UNKNOWN);
     this.render();
   }
+
+  /** 'YYYY.MM.DD'(X 포함) 로 채우기 — 운영진 웹의 기록 고치기에서 쓴다 */
+  setPattern(pattern) {
+    const chars = String(pattern ?? '').replace(/\./g, '').toUpperCase().split('');
+    this.digits = chars.length === 8 ? normalizeDigits(chars, this.today.year) : Array(8).fill(UNKNOWN);
+    this.render();
+  }
 }

@@ -1,6 +1,6 @@
 # 영천 홍보지도 앱 — REST API 명세서 (v4)
 
-> DB 설계 v5에 동기화: **시대 제거**, 장소·축제 핀 → 기억 날짜(부분 날짜) 순 타임라인, 기록마다 "그때 이름".
+> DB 설계 v6에 동기화(v4.8: 운영진 관리 API §12, 기록자·숨김·휴지통). v5 기준: **시대 제거**, 장소·축제 핀 → 기억 날짜(부분 날짜) 순 타임라인, 기록마다 "그때 이름".
 
 ## 문서 정보
 
@@ -9,7 +9,7 @@
 | 버전 | v4 |
 | Base URL | 개발: `http://localhost:8080/api/v1` (에뮬레이터에서는 `http://10.0.2.2:8080/api/v1`) |
 | DB | PostgreSQL / 이미지: 외부 스토리지 |
-| 최종 수정일 | 2026-11-10 |
+| 최종 수정일 | 2026-11-11 (v4.8) |
 
 ## 1. 공통 규약
 - 인증: JWT Bearer, `Authorization: Bearer {accessToken}`, `POST /auth/refresh`로 갱신.
@@ -24,11 +24,13 @@
 |---|---|---|
 | `INVALID_PARAMETER` | 400 | 형식·규칙 위반(기억 날짜 포함) |
 | `UNAUTHORIZED` | 401 | 토큰 없음/무효 |
-| `FORBIDDEN` | 403 | 본인 것이 아님 |
+| `FORBIDDEN` | 403 | 본인 것이 아님 · 운영진(admin) 전용 API 를 일반 계정이 부름 · 관람객 쓰기가 꺼져 있음 |
 | `PLACE_NOT_FOUND` | 404 | |
 | `EVENT_NOT_FOUND` | 404 | |
 | `STORY_NOT_FOUND` | 404 | |
 | `DUPLICATE_EMAIL` | 409 | |
+| `PLACE_HAS_STORIES` | 409 | 기록(휴지통 포함)이나 축제 개최지가 달린 장소를 지우려 함 (§12) |
+| `TOO_MANY_REQUESTS` | 429 | 관람객 쓰기 요청이 너무 잦음 (§11, IP당 10분 120회) |
 | `STORAGE_UNAVAILABLE` | 503 | 사진 저장소(§8) 설정이 서버에 없음 |
 | `PLACE_SEARCH_UNAVAILABLE` | 503 | 영천 장소 검색(외부 지도 검색)을 지금 쓸 수 없음 — 키 미설정·외부 오류 |
 | `INTERNAL_ERROR` | 500 | |
@@ -203,6 +205,7 @@ v3의 `GET /eras`, `GET /eras/{eraId}/map-layers`, `GET /place-eras/{id}`, `POST
 {
   "storyId": "uuid",
   "user": { "userId": "uuid", "name": "홍길동", "profileUrl": null },
+  "contributor": { "contributorId": "uuid", "nickname": "수집가" },
   "placeId": "uuid",
   "eventId": null,
   "memoryDate": { "pattern": "199X.XX.XX", "from": "1990-01-01", "to": "1999-12-31", "yearFrom": 1990, "yearTo": 1999 },
@@ -213,8 +216,11 @@ v3의 `GET /eras`, `GET /eras/{eraId}/map-layers`, `GET /place-eras/{id}`, `POST
 }
 ```
 
+- `user` = 저장한 계정, `contributor` = 기록을 남긴 사람(v4.8, 사람별 집계 기준. 지금은 계정 이름과 같다. 이벤트 때 관람객 닉네임이 들어온다).
+- 앱·관람객 웹의 모든 조회(타임라인·상세·핀의 `storyCount`)는 **공개 기록만**: 숨김(`hidden`)·휴지통(`deletedAt`) 기록은 없는 것으로 본다(ERD v6 §3-1).
+
 ### GET /stories/{storyId}
-- 상세. 에러 `STORY_NOT_FOUND`(404).
+- 상세(공개 기록만). 에러 `STORY_NOT_FOUND`(404) — 숨김·휴지통 기록 포함.
 
 ### POST /stories  (인증)
 ```json
@@ -238,8 +244,13 @@ v3의 `GET /eras`, `GET /eras/{eraId}/map-layers`, `GET /place-eras/{id}`, `POST
 - 응답 201: 생성된 스토리. 에러 `INVALID_PARAMETER`(앵커·내용·날짜 규칙), `PLACE_NOT_FOUND`, `EVENT_NOT_FOUND`.
 - 부수효과(예정): 작성자 `story_count` 증가 → 뱃지 트리거.
 
-### PATCH /stories/{storyId}  (인증, 본인만) — 바꿀 수 있는 필드: memoryDate, placeNameThen, content, photoUrls. 에러 `FORBIDDEN`(403)
-### DELETE /stories/{storyId}  (인증, 본인만)
+### PATCH /stories/{storyId}  (인증, 본인 또는 운영진)
+- 보낸 필드만 바꾼다: `memoryDate`, `placeNameThen`, `content`, `photoUrls`. 장소·축제(앵커)는 바꿀 수 없다.
+- `placeNameThen`·`content` 는 `""`/`null` 이면 지운다. `photoUrls` 를 보내면 사진 목록 전체를 그 순서로 바꾼다(빈 배열 = 모두 빼기).
+- 바꾼 결과에도 글 또는 사진이 하나는 남아야 한다(아니면 `INVALID_PARAMETER`).
+- 응답 200: 바뀐 스토리. 에러 `FORBIDDEN`(403, 남의 기록 + 운영진 아님), `STORY_NOT_FOUND`(404, 휴지통 포함).
+### DELETE /stories/{storyId}  (인증, 본인 또는 운영진)
+- v4.8부터 **휴지통으로 옮긴다**(`deletedAt` 기록, 사진 행 유지). 복구·영구 삭제는 §12. 응답 200 `{ "storyId" }`.
 
 ---
 
@@ -299,9 +310,101 @@ v3 §8(뱃지)과 동일.
 - UGC 신고/검수 엔드포인트(요구사항 Sys_02).
 - 타임라인에서 특정 연도로 바로 이동(숫자판으로 연도 고르기) — 필요하면 `GET .../stories?fromYear=` 추가.
 
+## 11. 관람객 웹 채널 (`/visitor/*`, 2026-11-10)
+
+전시장 QR(`https://map.burdocklab.com/visit/?c=코드`)로 들어온 관람객이 로그인 없이 **올리기만** 하는 입구. 읽기는 공개 GET(§4·§5)을 그대로 쓴다.
+
+- 쓰기 요청은 헤더 `X-Visitor-Code: {코드}` 필수. 서버 env `VISITOR_WRITE_CODE` 와 같아야 한다. env 가 비면 `FORBIDDEN`(쓰기 꺼짐), 틀리면 `UNAUTHORIZED`, IP당 10분 120회 초과 시 `TOO_MANY_REQUESTS`.
+- 통과하면 저장한 계정·기록자 = 수집가, 기록 경로(`source`) = `visitor_web`.
+
+| 메서드·경로 | 같은 동작 | 비고 |
+|---|---|---|
+| `GET /visitor/config` | — | `{ naverMapClientId, writable }` (코드 불필요) |
+| `POST /visitor/places/resolve` | `POST /places/resolve` | |
+| `POST /visitor/uploads/presign` | `POST /uploads/presign` | |
+| `POST /visitor/stories` | `POST /stories` | |
+
+## 12. 운영진 관리 (`/admin/*`, v4.8)
+
+운영진 관리 웹(`https://map.burdocklab.com/admin/`) 전용. **모든 경로 = 로그인 + `role=admin`**(수집가·운영진 계정, 권한 같음). 일반 계정은 `FORBIDDEN`.
+로그인은 `POST /auth/login` 그대로. 공통 상태: 공개 = 숨김 아님·휴지통 아님 / 활성 = 휴지통 아님(숨김 포함) (ERD v6 §3-1).
+
+### 기간 필터 (공통)
+`?from=YYYY-MM-DD&to=YYYY-MM-DD` — **서울 날짜, 등록일(createdAt) 기준, 양끝 포함**. 한쪽만 줘도 된다. 없는 날짜·거꾸로 된 범위는 `INVALID_PARAMETER`.
+
+### GET /admin/me
+`{ userId, email, name, role, contributor: { contributorId, nickname } }` — 이 계정으로 올린 기록이 어느 기록자로 집계되는지.
+
+### GET /admin/stats?from=&to=
+활성 기록 기준 집계.
+```json
+{
+  "period": { "from": null, "to": null },
+  "storyCount": 120, "photoCount": 310,
+  "placeCount": 34, "eventCount": 2, "contributorCount": 2,
+  "hiddenCount": 3, "trashCount": 1,
+  "bySource": { "app": 40, "visitor_web": 75, "admin": 5 }
+}
+```
+
+### GET /admin/contributors?from=&to=
+사람별 기록 수(활성, 기간 적용). 기록이 0개인 기록자도 포함, 많이 남긴 순, 최대 1000명.
+`{ items: [ { contributorId, nickname, accountName, hasContact, storyCount, photoCount, lastStoryAt } ] }` — `hasContact` 는 이벤트 연락처 유무만(번호는 응답하지 않음).
+
+### GET /admin/stories
+| 쿼리 | 설명 |
+|---|---|
+| page, size | 공통 |
+| placeId, eventId, contributorId | 해당 장소·축제·기록자 |
+| q (≤50) | 글·그때 이름·장소 이름 부분 일치 |
+| source | `app` · `visitor_web` · `admin` |
+| status | `active`(기본, 휴지통 제외) · `public` · `hidden` · `trash` · `all` |
+| sort | `created_desc`(기본) · `created_asc` · `memory_asc` · `memory_desc`(§3 타임라인 정렬) |
+| from, to | 기간 필터 |
+
+항목 = 스토리 공통 구조 + `place {placeId,name}|null`, `event {eventId,name}|null`, `source`, `hidden`, `deletedAt`, `updatedAt`.
+
+### GET /admin/stories/export
+같은 쿼리(페이지 무시, 최대 5000개) → **`text/csv` 파일**(envelope 없음, UTF-8 BOM, CRLF). 열: 기록ID, 등록일시(서울), 경로, 상태, 기록자, 장소, 축제, 기억 날짜, 그때 이름, 글, 사진 수, 사진 주소. `= + - @` 로 시작하는 칸은 앞에 `'` 를 붙인다(엑셀 수식 실행 방지).
+
+### GET /admin/stories/{storyId}
+숨김·휴지통 포함 단건.
+
+### POST /admin/stories
+body = `POST /stories` 와 같음. 저장한 계정·기록자 = 로그인한 운영 계정, `source` = `admin`. 응답 201: 관리용 항목.
+
+### PATCH /admin/stories/{storyId}
+body = `PATCH /stories/{id}` 와 같음(누구의 기록이든). 휴지통 기록은 `STORY_NOT_FOUND`.
+
+### PATCH /admin/stories/{storyId}/visibility
+`{ "hidden": true }` — 앱·관람객 웹에서 숨김/다시 보이기. 휴지통 기록은 `INVALID_PARAMETER`.
+
+### DELETE /admin/stories/{storyId}
+휴지통으로. 응답 `{ storyId }`.
+
+### POST /admin/stories/{storyId}/restore
+휴지통에서 꺼낸다(숨김 상태는 그대로). 휴지통이 아니면 `INVALID_PARAMETER`.
+
+### DELETE /admin/stories/{storyId}/permanent
+**휴지통의 기록만** 영구 삭제(사진 행 함께 삭제, 저장소 파일은 남음 §8). 아니면 `INVALID_PARAMETER`.
+
+### GET /admin/places?q=&sort=&page=&size=
+`sort` = `count`(기본, 기록 많은 순) · `name` · `recent`. 항목: `placeId, name, usageType, intro, address, latitude, longitude, sinceYear, thumbnailUrl, storyCount(활성), createdAt`.
+
+### GET /admin/places/{placeId} · POST /admin/places · PATCH /admin/places/{placeId}
+- POST body = `POST /places`(§4). 관리 웹은 중복을 막기 위해 보통 `POST /places/resolve` 로 만든 뒤 나머지를 PATCH 한다.
+- PATCH: 보낸 필드만. `name`(비울 수 없음), `usageType`·`intro`·`address`·`thumbnailUrl`(`""`/`null` = 지우기), `sinceYear`(null = 지우기), `latitude`, `longitude`.
+
+### DELETE /admin/places/{placeId}
+기록(휴지통 포함)·축제 개최지 연결이 없을 때만. 있으면 `PLACE_HAS_STORIES`(409).
+
+---
+
 ## 변경 이력
 | 날짜 | 버전 | 내용 |
 |---|---|---|
+| 2026-11-11 | v4.8 | §12 운영진 관리 API(`/admin/*`, role=admin). 스토리 응답에 `contributor`, 공개 조회는 숨김·휴지통 제외, `DELETE /stories` = 휴지통, 수정·삭제는 본인 또는 운영진. 에러 `PLACE_HAS_STORIES`(409) |
+| 2026-11-10 | v4.7 | PATCH·DELETE /stories 상세, §11 관람객 웹 채널, 에러 `TOO_MANY_REQUESTS`(429) |
 | 2026-11-10 | v4.6 | §8 이미지 업로드 확정: Ncloud Storage, `POST /uploads/presign`(1~5장, jpeg/png/webp, ≤10MB, 10분), photoUrls 는 저장소 공개 주소만, 에러 `STORAGE_UNAVAILABLE`(503) |
 | 2026-11-08 | v4.5.1 | 지역 검색 호출을 NAVER API HUB 로 이관(주소·헤더 변경, 앱 계약은 그대로) |
 | 2026-11-08 | v4.5 | 영천 장소 검색을 카카오 → **네이버 지역 검색**으로 교체(지도와 같은 네이버 데이터). candidates 는 최대 5곳·페이지 없음(옛 앱이 보내는 `page` 는 받기만 하고 무시) |

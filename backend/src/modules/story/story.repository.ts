@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ACTIVE_STORY_WHERE, PUBLIC_STORY_WHERE } from '../../common/story-visibility/story-visibility';
 import { ResolvedMemoryDate } from '../../common/memory-date/memory-date.resolver';
+import { StorySource } from './story-source';
 import { StoryRow, storyInclude } from './story.mapper';
 import { TimelineOrder, timelineOrderBy } from './story-timeline.order';
 
@@ -9,6 +11,8 @@ export type TimelineAnchor = { placeId: string } | { eventId: string };
 
 export interface CreateStoryData extends ResolvedMemoryDate {
   userId: string;
+  contributorId: string;
+  source: StorySource;
   placeId?: string;
   eventId?: string;
   placeNameThen?: string;
@@ -30,7 +34,7 @@ function photoRows(photoUrls: string[]): { imageUrl: string; createdAt: Date }[]
   return photoUrls.map((imageUrl, i) => ({ imageUrl, createdAt: new Date(base + i) }));
 }
 
-// story / story_photo 쿼리만
+// story / story_photo 쿼리만 (앱·관람객 웹용). 운영진 관리 쿼리는 admin/admin-story.repository
 @Injectable()
 export class StoryRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -41,14 +45,21 @@ export class StoryRepository {
     skip: number,
     take: number,
   ): Promise<[StoryRow[], number]> {
+    const where = { ...anchor, ...PUBLIC_STORY_WHERE };
     return Promise.all([
-      this.prisma.story.findMany({ where: anchor, include: storyInclude, orderBy: timelineOrderBy(order), skip, take }),
-      this.prisma.story.count({ where: anchor }),
+      this.prisma.story.findMany({ where, include: storyInclude, orderBy: timelineOrderBy(order), skip, take }),
+      this.prisma.story.count({ where }),
     ]);
   }
 
-  findById(storyId: string): Promise<StoryRow | null> {
-    return this.prisma.story.findUnique({ where: { storyId }, include: storyInclude });
+  // 앱·관람객 웹 상세: 공개 기록만 (숨김·휴지통은 없는 것으로)
+  findPublicById(storyId: string): Promise<StoryRow | null> {
+    return this.prisma.story.findFirst({ where: { storyId, ...PUBLIC_STORY_WHERE }, include: storyInclude });
+  }
+
+  // 수정·삭제 대상: 휴지통이 아닌 기록 (숨김 포함 — 운영진이 숨긴 기록도 고칠 수 있게)
+  findActiveById(storyId: string): Promise<StoryRow | null> {
+    return this.prisma.story.findFirst({ where: { storyId, ...ACTIVE_STORY_WHERE }, include: storyInclude });
   }
 
   // 스토리와 사진을 한 번에 생성(중첩 create → 한 트랜잭션)
@@ -65,7 +76,8 @@ export class StoryRepository {
     return this.prisma.story.update({ where: { storyId }, data: { ...data, photos }, include: storyInclude });
   }
 
-  async delete(storyId: string): Promise<void> {
-    await this.prisma.story.delete({ where: { storyId } });
+  // 휴지통으로 (사진 행은 그대로 — 복구하면 다시 보인다)
+  async softDelete(storyId: string, at: Date): Promise<void> {
+    await this.prisma.story.update({ where: { storyId }, data: { deletedAt: at } });
   }
 }

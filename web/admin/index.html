@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#F3EBDD">
+  <title>영천 기억 지도 · 운영진</title>
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+  <!-- 로그인 -->
+  <section id="login-view" class="login" hidden>
+    <p class="label">YEONGCHEON MEMORY MAP · STAFF</p>
+    <h1>운영진 기록 보관소</h1>
+    <form id="login-form" class="login-form">
+      <label class="field-label">이메일 <input id="login-email" class="field" type="email" autocomplete="username" required></label>
+      <label class="field-label">비밀번호 <input id="login-password" class="field" type="password" autocomplete="current-password" required></label>
+      <button class="btn btn-ink" type="submit">들어가기</button>
+      <p id="login-error" class="warning" hidden></p>
+    </form>
+  </section>
+
+  <!-- 관리 화면 -->
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <p class="label">YEONGCHEON MEMORY MAP · STAFF</p>
+        <strong>운영진 기록 보관소</strong>
+      </div>
+      <nav class="tabs" id="tabs">
+        <a href="#/dashboard" data-tab="dashboard">한눈에</a>
+        <a href="#/stories" data-tab="stories">기록</a>
+        <a href="#/places" data-tab="places">장소</a>
+        <a href="#/people" data-tab="people">사람</a>
+        <a href="#/trash" data-tab="trash">휴지통</a>
+      </nav>
+      <div class="whoami">
+        <span id="whoami-name" class="stamp"></span>
+        <button id="logout" class="btn btn-small" type="button">나가기</button>
+      </div>
+    </header>
+    <main id="view" class="view"></main>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

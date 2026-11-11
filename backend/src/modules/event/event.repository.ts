@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { Event, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PUBLIC_STORY_WHERE } from '../../common/story-visibility/story-visibility';
 
-const withStoryCount = { _count: { select: { stories: true } } } satisfies Prisma.EventInclude;
+const withStoryCount = { _count: { select: { stories: { where: PUBLIC_STORY_WHERE } } } } satisfies Prisma.EventInclude;
 export type EventPinRow = Prisma.EventGetPayload<{ include: typeof withStoryCount }>;
 
 const detailInclude = {
   hosts: true,
   occurrences: { orderBy: { year: 'asc' } },
-  _count: { select: { stories: true } },
+  _count: { select: { stories: { where: PUBLIC_STORY_WHERE } } },
 } satisfies Prisma.EventInclude;
 export type EventDetailRow = Prisma.EventGetPayload<{ include: typeof detailInclude }>;
 

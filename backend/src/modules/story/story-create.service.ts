@@ -3,18 +3,21 @@ import { AppErrorCode } from '../../common/errors/app-error-code';
 import { AppException } from '../../common/errors/app.exception';
 import { resolveMemoryDate } from '../../common/memory-date/memory-date.resolver';
 import { EventService } from '../event/event.service';
+import { ContributorService } from '../contributor/contributor.service';
 import { PlaceService } from '../place/place.service';
 import { PhotoUrlPolicy } from '../upload/photo-url.policy';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { normalizeStoryText } from './story-text';
 import { StoryResponse, toStoryResponse } from './story.mapper';
 import { StoryRepository } from './story.repository';
+import { StoryWriter } from './story-writer';
 
 // 스토리 작성 유스케이스. 규칙:
 // 1) placeId 또는 eventId 중 최소 하나 (둘 다 가능)
 // 2) content 또는 photoUrls(1개 이상) 중 최소 하나 — 사진만 / 글만 가능
 // 3) photoUrls 는 우리 저장소 공개 주소만 (API 명세 §8)
 // 4) memoryDate 는 resolver 가 가능한 날짜인지 검증하고 정렬용 값까지 계산
+// 5) 기록자: writer.contributorId 가 없으면 저장한 계정의 기록자 (ERD v6)
 @Injectable()
 export class StoryCreateService {
   constructor(
@@ -22,9 +25,10 @@ export class StoryCreateService {
     private readonly placeService: PlaceService,
     private readonly eventService: EventService,
     private readonly photoUrlPolicy: PhotoUrlPolicy,
+    private readonly contributorService: ContributorService,
   ) {}
 
-  async create(dto: CreateStoryDto, userId: string): Promise<StoryResponse> {
+  async create(dto: CreateStoryDto, writer: StoryWriter): Promise<StoryResponse> {
     this.assertAnchor(dto);
     const content = normalizeStoryText(dto.content);
     const photoUrls = dto.photoUrls ?? [];
@@ -34,10 +38,13 @@ export class StoryCreateService {
     const memory = resolveMemoryDate(dto.memoryDate);
     if (dto.placeId) await this.placeService.getPlaceOrThrow(dto.placeId);
     if (dto.eventId) await this.eventService.getEventOrThrow(dto.eventId);
+    const contributorId = writer.contributorId ?? (await this.contributorService.resolveForUser(writer.userId)).contributorId;
 
     const row = await this.storyRepository.create({
       ...memory,
-      userId,
+      userId: writer.userId,
+      contributorId,
+      source: writer.source,
       placeId: dto.placeId,
       eventId: dto.eventId,
       placeNameThen: normalizeStoryText(dto.placeNameThen),

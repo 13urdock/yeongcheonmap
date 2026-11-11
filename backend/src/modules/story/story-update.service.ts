@@ -4,13 +4,13 @@ import { AppException } from '../../common/errors/app.exception';
 import { resolveMemoryDate } from '../../common/memory-date/memory-date.resolver';
 import { PhotoUrlPolicy } from '../upload/photo-url.policy';
 import { UpdateStoryDto } from './dto/update-story.dto';
-import { assertOwnedStory } from './story-ownership';
+import { StoryEditPolicy } from './story-edit.policy';
 import { normalizeStoryText } from './story-text';
 import { StoryResponse, toStoryResponse } from './story.mapper';
 import { StoryRepository, UpdateStoryData } from './story.repository';
 
 // 스토리 수정 유스케이스. 규칙:
-// 1) 본인 기록만 (FORBIDDEN)
+// 1) 본인 기록 또는 운영진(admin)만 (FORBIDDEN). 휴지통 기록은 없는 것으로(STORY_NOT_FOUND)
 // 2) 보낸 필드만 바꾼다. placeNameThen·content 는 ""/null 이면 지운다
 // 3) photoUrls 를 보내면 사진 목록 전체 교체(순서 유지), 우리 저장소 주소만
 // 4) 바꾼 결과에도 글 또는 사진이 하나는 남아야 한다
@@ -20,10 +20,11 @@ export class StoryUpdateService {
   constructor(
     private readonly storyRepository: StoryRepository,
     private readonly photoUrlPolicy: PhotoUrlPolicy,
+    private readonly editPolicy: StoryEditPolicy,
   ) {}
 
   async update(storyId: string, dto: UpdateStoryDto, userId: string): Promise<StoryResponse> {
-    const current = assertOwnedStory(await this.storyRepository.findById(storyId), userId);
+    const current = await this.editPolicy.assertCanEdit(await this.storyRepository.findActiveById(storyId), userId);
     if (dto.photoUrls) this.photoUrlPolicy.assertOwnPhotoUrls(dto.photoUrls);
 
     const data: UpdateStoryData = {};

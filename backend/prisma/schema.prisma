@@ -1,4 +1,4 @@
-// 영천 홍보지도 앱 — DB 모델 정본 (설명서: docs/ERD_v5.md)
+// 영천 홍보지도 앱 — DB 모델 정본 (설명서: docs/ERD_v6.md)
 // 변경은 이 파일 → `prisma migrate dev` 순서로만. (수동 DB 편집·db push 금지)
 // 표기 규칙: Prisma 모델/필드는 camelCase, 실제 컬럼·테이블은 @map/@@map 으로 snake_case 유지.
 
@@ -22,10 +22,12 @@ model User {
   email        String   @unique @db.VarChar(255)
   passwordHash String   @map("password_hash") @db.VarChar(255)
   name         String   @db.VarChar(50)
+  role         String   @default("member") @db.VarChar(20) // 'member' | 'admin' (수집가·운영진 = admin, 권한 같음)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   profile      UserProfile?
+  contributor  Contributor?
   sessions     Session[]
   places       Place[]
   stories      Story[]
@@ -57,6 +59,40 @@ model Session {
 
   @@index([userId])
   @@map("session")
+}
+
+// ---------------------------------------------------------------------------
+// 기록자 (ERD v6): "기록을 남긴 사람". 로그인 계정(User)과 분리해 사람별 집계의 기준이 된다.
+// - 지금: 계정마다 기록자 1명(수집가·운영진). 관람객 웹 기록은 수집가로 들어간다.
+// - 나중(이벤트): 관람객이 닉네임·전화번호를 남기면 계정 없는 기록자(userId NULL)를 만든다.
+// ---------------------------------------------------------------------------
+
+model Contributor {
+  contributorId String   @id @default(dbgenerated("gen_random_uuid()")) @map("contributor_id") @db.Uuid
+  nickname      String   @db.VarChar(50)
+  userId        String?  @unique @map("user_id") @db.Uuid // 계정이 있는 기록자(수집가·운영진)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user    User?               @relation(fields: [userId], references: [userId])
+  contact ContributorContact?
+  stories Story[]
+
+  @@map("contributor")
+}
+
+// 기록자 연락처 (개인정보). 이벤트용으로 나중에 채운다. 기록자와 분리해 두어
+// 이벤트가 끝나면 이 테이블만 지워 파기할 수 있다. 관리 화면에는 가려서(010-****-1234) 보여준다.
+model ContributorContact {
+  contributorId String    @id @map("contributor_id") @db.Uuid
+  phone         String    @unique @db.VarChar(20) // 숫자만 저장 (01012345678)
+  consentedAt   DateTime  @map("consented_at") @db.Timestamptz // 수집·이용 동의 시각
+  retainUntil   DateTime? @map("retain_until") @db.Date // 파기 예정일
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  contributor Contributor @relation(fields: [contributorId], references: [contributorId], onDelete: Cascade)
+
+  @@map("contributor_contact")
 }
 
 // ---------------------------------------------------------------------------
@@ -95,7 +131,11 @@ model Story {
   storyId           String   @id @default(dbgenerated("gen_random_uuid()")) @map("story_id") @db.Uuid
   placeId           String?  @map("place_id") @db.Uuid
   eventId           String?  @map("event_id") @db.Uuid
-  userId            String   @map("user_id") @db.Uuid
+  userId            String   @map("user_id") @db.Uuid // 저장한 계정
+  contributorId     String   @map("contributor_id") @db.Uuid // 기록을 남긴 사람(집계 기준)
+  source            String   @default("app") @db.VarChar(20) // 'app' | 'visitor_web' | 'admin'
+  hidden            Boolean  @default(false) // true = 앱·관람객 웹에 안 보임(운영진만)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz // 휴지통. NULL 이 아니면 삭제된 기록
   memoryDate        String   @default("XXXX.XX.XX") @map("memory_date") @db.Char(10) // YYYY.MM.DD, X=모름
   memoryDateFrom    DateTime @map("memory_date_from") @db.Date
   memoryDateTo      DateTime @map("memory_date_to") @db.Date
@@ -109,13 +149,16 @@ model Story {
 
   place  Place?       @relation(fields: [placeId], references: [placeId])
   event  Event?       @relation(fields: [eventId], references: [eventId])
-  user   User         @relation(fields: [userId], references: [userId])
-  photos StoryPhoto[]
+  user        User         @relation(fields: [userId], references: [userId])
+  contributor Contributor  @relation(fields: [contributorId], references: [contributorId])
+  photos      StoryPhoto[]
 
   // 타임라인 정렬(ERD v5 §3)용 복합 인덱스
   @@index([placeId, memoryYearUnknown, memoryYearFrom, memoryYearTo, memoryDateFrom, memoryDateTo], map: "story_place_timeline_idx")
   @@index([eventId, memoryYearUnknown, memoryYearFrom, memoryYearTo, memoryDateFrom, memoryDateTo], map: "story_event_timeline_idx")
   @@index([userId])
+  @@index([contributorId])
+  @@index([createdAt])
   @@map("story")
 }
 

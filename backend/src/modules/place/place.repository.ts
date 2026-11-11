@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Place, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PUBLIC_STORY_WHERE } from '../../common/story-visibility/story-visibility';
 import { BoundingBox } from '../../common/utils/bbox.parser';
 
 // 핀·상세 조회 형태: 장소 + 기록 수
-const withStoryCount = { _count: { select: { stories: true } } } satisfies Prisma.PlaceInclude;
+const withStoryCount = { _count: { select: { stories: { where: PUBLIC_STORY_WHERE } } } } satisfies Prisma.PlaceInclude;
 export type PlaceWithCountRow = Prisma.PlaceGetPayload<{ include: typeof withStoryCount }>;
 
 export interface PinFilter {

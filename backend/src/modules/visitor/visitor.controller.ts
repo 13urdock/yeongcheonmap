@@ -4,6 +4,7 @@ import { ResolvePlaceDto } from '../place/dto/resolve-place.dto';
 import { PlaceResolveService } from '../place/place-resolve.service';
 import { CreateStoryDto } from '../story/dto/create-story.dto';
 import { StoryCreateService } from '../story/story-create.service';
+import { StorySource } from '../story/story-source';
 import { PresignUploadDto } from '../upload/dto/presign-upload.dto';
 import { UploadService } from '../upload/upload.service';
 import { VisitorCodeGuard } from './visitor-code.guard';
@@ -42,11 +43,11 @@ export class VisitorController {
     return this.uploadService.presign(dto.files);
   }
 
-  // POST /visitor/stories (쓰기 코드) — POST /stories 와 같음, 작성자는 수집가
+  // POST /visitor/stories (쓰기 코드) — POST /stories 와 같음, 작성자·기록자는 수집가, 경로 visitor_web
   @Post('stories')
   @HttpCode(201)
   @UseGuards(VisitorCodeGuard)
   createStory(@Body() dto: CreateStoryDto, @CurrentUser() user: CurrentUserInfo) {
-    return this.storyCreateService.create(dto, user.userId);
+    return this.storyCreateService.create(dto, { userId: user.userId, source: StorySource.VISITOR_WEB });
   }
 }

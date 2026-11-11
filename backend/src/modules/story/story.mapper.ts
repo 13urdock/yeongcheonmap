@@ -1,9 +1,10 @@
 import { Prisma } from '../../generated/prisma/client';
 import { toIsoDate } from '../../common/memory-date/seoul-today';
 
-// 스토리 공통 구조 (API 명세 v4 §7)
+// 스토리 공통 구조 (API 명세 v4.8 §7)
 export const storyInclude = {
   user: { select: { userId: true, name: true, profile: { select: { profileUrl: true } } } },
+  contributor: { select: { contributorId: true, nickname: true } },
   photos: { select: { storyPhotoId: true, imageUrl: true }, orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.StoryInclude;
 export type StoryRow = Prisma.StoryGetPayload<{ include: typeof storyInclude }>;
@@ -19,6 +20,7 @@ export interface MemoryDateResponse {
 export interface StoryResponse {
   storyId: string;
   user: { userId: string; name: string; profileUrl: string | null };
+  contributor: { contributorId: string; nickname: string }; // 기록을 남긴 사람 (ERD v6)
   placeId: string | null;
   eventId: string | null;
   memoryDate: MemoryDateResponse;
@@ -32,6 +34,7 @@ export function toStoryResponse(row: StoryRow): StoryResponse {
   return {
     storyId: row.storyId,
     user: { userId: row.user.userId, name: row.user.name, profileUrl: row.user.profile?.profileUrl ?? null },
+    contributor: row.contributor,
     placeId: row.placeId,
     eventId: row.eventId,
     memoryDate: {
